@@ -1,5 +1,16 @@
+// PTEMaster: main React component for the PTE practice app.
+// This single-file component contains both data (sample questions, defaults)
+// and the UI for multiple tabs: Priority Map, AI Scorer, Score Tracker, Question Bank.
+//
+// Notes for beginners:
+// - This component uses React hooks for state (useState).
+// - The `scoreResponse` function sends user text to the backend proxy `/api/score`.
+// - The UI is large (many small sections). If you want to improve readability,
+//   consider splitting the file into smaller components (e.g., ScorerPanel, TrackerPanel).
 import { useState } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+
+// Simple constants used for display colours and labels.
 const ZONE_COLOR = { S: "#38BDF8", W: "#A78BFA", R: "#34D399", L: "#FBBF24" };
 const ZONE_NAME = { S: "Speaking", W: "Writing", R: "Reading", L: "Listening" };
 
@@ -57,6 +68,9 @@ const TASK_DESC = {
   write_dictation: "Write From Dictation — student typed what they heard; every word must be verbatim and spelled correctly",
 };
 
+// SCORE_PROMPT is a long instruction used when sending the student's response to an LLM
+// for scoring. It asks the model to return a compact JSON following the PTE rubric.
+// The exact prompt content is not modified here; it's passed to the backend proxy.
 const SCORE_PROMPT = `You are a certified PTE Academic expert examiner with 10+ years of experience scoring official PTE tests. Apply the official PTE Academic marking rubrics strictly. Return ONLY valid compact JSON with no markdown fences, no preamble:
 {
   "overall": <integer 0-90>,
@@ -74,6 +88,8 @@ const SCORE_PROMPT = `You are a certified PTE Academic expert examiner with 10+ 
 }`;
 
 export default function PTEMaster() {
+  // ---- Component state ----
+  // `tab` switches between the app's main screens.
   const [tab, setTab] = useState("priority");
   const [scorerTask, setScorerTask] = useState("write_essay");
   const [userText, setUserText] = useState("");
@@ -91,11 +107,15 @@ export default function PTEMaster() {
   const [qRevealed, setQRevealed] = useState({});
   const [qSelected, setQSelected] = useState({});
 
+  // Derive overall score for each saved session and get the latest session.
   const sessionsWithOverall = sessions.map(s => ({ ...s, Overall: Math.round((s.S + s.W + s.R + s.L) / 4) }));
   const latest = sessionsWithOverall[sessionsWithOverall.length - 1];
 
+  // scoreResponse: send the user's pasted text to the backend proxy /api/score.
+  // The backend will forward it to Anthropic using the server-side API key.
+  // This function sets local loading/error state and stores the parsed result.
   async function scoreResponse() {
-    if (!userText.trim() || scoring) return;
+    if (!userText.trim() || scoring) return; // prevent empty or duplicate calls
     setScoring(true); setScoreResult(null); setScoreError("");
     try {
       const res = await fetch("/api/score", {
@@ -108,8 +128,12 @@ export default function PTEMaster() {
           messages: [{ role: "user", content: `Task: ${TASK_DESC[scorerTask]}\n\nStudent Response:\n${userText}` }]
         })
       });
+
       const data = await res.json();
-      // If proxy returns the raw Anthropic-like envelope
+
+      // The Anthropic / proxy response sometimes wraps text under data.content[].text.
+      // We attempt to extract and parse JSON from that field; if parsing fails, we
+      // fall back to returning the raw response (for easier debugging).
       const raw = (data.content || []).map(b => b.text || "").join("").replace(/```json|```/g, "").trim();
       try { setScoreResult(JSON.parse(raw)); }
       catch { setScoreResult(data); }
