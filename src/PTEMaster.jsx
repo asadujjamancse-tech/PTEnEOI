@@ -197,18 +197,61 @@ export default function PTEMaster() {
 
   const wc = (t) => t.trim().split(/\s+/).filter(Boolean).length;
 
-  const tabs = [
-    { id: "priority", icon: "🎯", label: "Priority Map" },
-    { id: "scorer", icon: "🤖", label: "AI Scorer" },
-    { id: "tracker", icon: "📊", label: "Score Tracker" },
-    { id: "qbank", icon: "📚", label: "Question Bank" },
-    { id: "mock", icon: "🧪", label: "Mock Tests" },
-    { id: "speaking", icon: "🎙️", label: "Speaking Zone" },
-    { id: "planner", icon: "🗓️", label: "Study Planner" },
-    { id: "analytics", icon: "📈", label: "Analytics" },
-    { id: "game", icon: "🏆", label: "Gamification" },
-    { id: "prod", icon: "🚀", label: "Production" },
+  const PRACTICE_ZONES = [
+    { id: "speaking",  label: "Speaking",  tag: "S", color: "#38BDF8", icon: "🎙",
+      sub: [
+        { id: "read_aloud", label: "Read Aloud",        weight: "15%" },
+        { id: "repeat",     label: "Repeat Sentence",   weight: "13%" },
+        { id: "describe",   label: "Describe Image",    weight: "10%" },
+        { id: "retell",     label: "Re-tell Lecture",   weight: "8%"  },
+      ]},
+    { id: "writing",   label: "Writing",   tag: "W", color: "#A78BFA", icon: "✍",
+      sub: [
+        { id: "essay",      label: "Write Essay",           weight: "24%" },
+        { id: "summarize",  label: "Summarize Written Text", weight: "15%" },
+      ]},
+    { id: "reading",   label: "Reading",   tag: "R", color: "#34D399", icon: "📖",
+      sub: [
+        { id: "rw_fitb",   label: "R&W Fill Blanks",     weight: "18%" },
+        { id: "reorder",   label: "Reorder Paragraph",   weight: "13%" },
+        { id: "dropdown",  label: "Fill Blanks Dropdown",weight: "10%" },
+        { id: "general",   label: "Reading Practice",    weight: "" },
+      ]},
+    { id: "listening", label: "Listening", tag: "L", color: "#FBBF24", icon: "🎧",
+      sub: [
+        { id: "dictation", label: "Write From Dictation", weight: "22%" },
+        { id: "summarize", label: "Summarize Spoken",     weight: "14%" },
+        { id: "typein",    label: "Fill Blanks (Type-In)", weight: "12%" },
+        { id: "general",   label: "Listening Practice",  weight: "" },
+      ]},
   ];
+
+  const TOOL_ITEMS = [
+    { id: "priority", label: "Priority Map",   icon: "🎯" },
+    { id: "scorer",   label: "AI Scorer",      icon: "🤖" },
+    { id: "tracker",  label: "Score Tracker",  icon: "📊" },
+    { id: "qbank",    label: "Question Bank",  icon: "📚" },
+    { id: "mock",     label: "Mock Tests",     icon: "🧪" },
+    { id: "planner",  label: "Study Planner",  icon: "🗓" },
+    { id: "analytics",label: "Analytics",      icon: "📈" },
+  ];
+
+  const nav = (mainTab, subId) => {
+    setTab(mainTab);
+    if (mainTab === "speaking")  setSpeakingTab(subId);
+    if (mainTab === "writing")   setWritingTab(subId);
+    if (mainTab === "reading")   setReadingTab(subId);
+    if (mainTab === "listening") setListeningTab(subId);
+  };
+
+  const isSubActive = (zone, subId) => {
+    if (tab !== zone) return false;
+    if (zone === "speaking")  return speakingTab === subId;
+    if (zone === "writing")   return writingTab  === subId;
+    if (zone === "reading")   return readingTab  === subId;
+    if (zone === "listening") return listeningTab === subId;
+    return false;
+  };
 
   const qTaskTabs = [
     { id: "write_essay", icon: "✍️", label: "Write Essay" },
@@ -221,16 +264,13 @@ export default function PTEMaster() {
   const scoreColor = (s) => s >= 79 ? "#34D399" : s >= 65 ? "#FBBF24" : "#F87171";
 
   return (
-    <div style={{ minHeight: "100vh", background: "#080E1A", color: "#fff", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+    <div style={{ display: "flex", minHeight: "calc(100vh - 54px)", background: "#080E1A", color: "#fff", fontFamily: "'Inter', 'DM Sans', system-ui, sans-serif" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
         * { box-sizing: border-box; }
-        ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #0F1929; } ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-        textarea, input, select { font-family: 'DM Sans', system-ui, sans-serif; }
-        .tab-btn { background: none; border: none; cursor: pointer; padding: 12px 18px; color: #64748B; font-size: 13px; font-weight: 600; border-bottom: 2px solid transparent; transition: all .2s; white-space: nowrap; }
-        .tab-btn:hover { color: #CBD5E1; }
-        .tab-btn.active { color: #fff; border-bottom-color: #38BDF8; }
-        .qtab { background: #1E293B; border: 1px solid #334155; border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; color: #94A3B8; transition: all .2s; }
+        ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-track { background: #080E1A; } ::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 3px; }
+        textarea, input, select { font-family: 'Inter', 'DM Sans', system-ui, sans-serif; }
+        .qtab { background: #1E293B; border: 1px solid #334155; border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; color: #94A3B8; transition: all .2s; font-family: inherit; }
         .qtab.active { background: #0EA5E9; border-color: #0EA5E9; color: #fff; }
         .qtab:hover:not(.active) { border-color: #475569; color: #CBD5E1; }
         .task-card { background: #0F1929; border: 1px solid #1E293B; border-radius: 12px; padding: 16px; transition: all .2s; }
@@ -239,44 +279,120 @@ export default function PTEMaster() {
         .btn-primary { background: #0EA5E9; border: none; color: #fff; font-weight: 700; border-radius: 10px; cursor: pointer; transition: all .2s; font-family: inherit; }
         .btn-primary:hover:not(:disabled) { background: #38BDF8; transform: translateY(-1px); }
         .btn-primary:disabled { background: #1E293B; color: #475569; cursor: not-allowed; transform: none; }
-        .input-field { background: #0F1929; border: 1px solid #334155; border-radius: 10px; color: #fff; font-size: 14px; padding: 10px 14px; width: 100%; outline: none; transition: border .2s; }
+        .input-field { background: #0F1929; border: 1px solid #334155; border-radius: 10px; color: #fff; font-size: 14px; padding: 10px 14px; width: 100%; outline: none; transition: border .2s; font-family: inherit; }
         .input-field:focus { border-color: #0EA5E9; }
         textarea.input-field { resize: none; min-height: 160px; line-height: 1.7; }
         .score-bar-bg { background: #1E293B; border-radius: 4px; height: 6px; overflow: hidden; }
         .score-bar-fill { height: 6px; border-radius: 4px; transition: width .6s ease; }
-        .reveal-btn { background: none; border: none; color: #64748B; font-size: 12px; cursor: pointer; padding: 4px 0; text-decoration: underline; }
+        .reveal-btn { background: none; border: none; color: #64748B; font-size: 12px; cursor: pointer; padding: 4px 0; text-decoration: underline; font-family: inherit; }
         .reveal-btn:hover { color: #94A3B8; }
-        .select-blank { background: #1E293B; border: 1px solid #475569; border-radius: 6px; color: #fff; padding: 3px 8px; font-size: 13px; cursor: pointer; }
-        .send-to-scorer { background: #1D4ED8; border: none; color: #93C5FD; font-size: 12px; font-weight: 600; border-radius: 8px; padding: 7px 14px; cursor: pointer; margin-top: 8px; transition: all .2s; }
+        .select-blank { background: #1E293B; border: 1px solid #475569; border-radius: 6px; color: #fff; padding: 3px 8px; font-size: 13px; cursor: pointer; font-family: inherit; }
+        .send-to-scorer { background: #1D4ED8; border: none; color: #93C5FD; font-size: 12px; font-weight: 600; border-radius: 8px; padding: 7px 14px; cursor: pointer; margin-top: 8px; transition: all .2s; font-family: inherit; }
         .send-to-scorer:hover { background: #2563EB; color: #fff; }
         tr:hover td { background: rgba(255,255,255,.02); }
+
+        /* ── Sidebar ── */
+        .sidebar { width: 226px; min-width: 226px; background: #050C1A; border-right: 1px solid rgba(255,255,255,0.06); display: flex; flex-direction: column; position: sticky; top: 54px; height: calc(100vh - 54px); overflow-y: auto; padding-bottom: 24px; }
+        .sidebar::-webkit-scrollbar { width: 3px; }
+        .sidebar::-webkit-scrollbar-thumb { background: #1E293B; }
+
+        .nav-section { font-size: 9px; font-weight: 700; letter-spacing: 1.2px; color: rgba(255,255,255,0.2); padding: 18px 16px 6px; text-transform: uppercase; }
+
+        .nav-zone { display: flex; align-items: center; gap: 9px; padding: 8px 14px; cursor: pointer; border-radius: 0; border: none; background: transparent; color: rgba(255,255,255,0.55); font-size: 13px; font-weight: 700; font-family: inherit; transition: all .15s; width: 100%; text-align: left; }
+        .nav-zone:hover { color: rgba(255,255,255,0.85); background: rgba(255,255,255,0.04); }
+        .nav-zone.active { color: #fff; background: rgba(255,255,255,0.05); }
+
+        .nav-zone-tag { width: 24px; height: 24px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; flex-shrink: 0; }
+
+        .nav-sub { display: flex; align-items: center; padding: 6px 14px 6px 44px; cursor: pointer; border: none; background: transparent; color: rgba(255,255,255,0.33); font-size: 12px; font-weight: 500; font-family: inherit; transition: all .15s; width: 100%; text-align: left; border-radius: 0; gap: 6px; }
+        .nav-sub:hover { color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.03); }
+        .nav-sub.active { color: #fff; background: rgba(255,255,255,0.06); font-weight: 600; }
+        .nav-sub-weight { margin-left: auto; font-size: 10px; font-weight: 700; opacity: 0.6; }
+        .nav-sub.active .nav-sub-weight { opacity: 1; }
+
+        .nav-tool { display: flex; align-items: center; gap: 9px; padding: 8px 14px; cursor: pointer; border: none; background: transparent; color: rgba(255,255,255,0.4); font-size: 12.5px; font-weight: 600; font-family: inherit; transition: all .15s; width: 100%; text-align: left; border-radius: 0; }
+        .nav-tool:hover { color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.04); }
+        .nav-tool.active { color: #38BDF8; background: rgba(14,165,233,0.08); }
+        .nav-tool-icon { font-size: 14px; width: 20px; text-align: center; }
+
+        /* Active left border glow */
+        .nav-sub.active  { box-shadow: inset 3px 0 0 var(--zone-color, #38BDF8); }
+        .nav-tool.active { box-shadow: inset 3px 0 0 #38BDF8; }
       `}</style>
 
-      {/* Header */}
-      <div style={{ background: "#0A1222", borderBottom: "1px solid #1E293B", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, letterSpacing: "-.3px" }}>PTE <span style={{ color: "#38BDF8" }}>90</span> Master</div>
-          <div style={{ color: "#475569", fontSize: 11, marginTop: 2 }}>AI Scorer · Score Tracker · Question Bank</div>
-        </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {latest && ["S","W","R","L"].map(z => latest[z] != null && (
-            <div key={z} style={{ textAlign: "center", padding: "4px 10px", background: "#0F1929", borderRadius: 8, border: `1px solid ${ZONE_COLOR[z]}30` }}>
-              <div style={{ fontSize: 9, color: ZONE_COLOR[z], fontWeight: 700, textTransform: "uppercase" }}>{ZONE_NAME[z].slice(0,2)}</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: scoreColor(latest[z]) }}>{latest[z]}</div>
+      {/* ── SIDEBAR ── */}
+      <div className="sidebar">
+        {/* Logo + score badges */}
+        <div style={{ padding: "18px 16px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 12 }}>
+            <div style={{ width: 30, height: 30, borderRadius: 8, background: "linear-gradient(135deg,#0EA5E9,#2563EB)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 900, color: "#fff", boxShadow: "0 4px 10px rgba(14,165,233,0.35)", flexShrink: 0 }}>90</div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#F1F5F9", letterSpacing: "-0.3px" }}>PTE <span style={{ color: "#38BDF8" }}>Master</span></div>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", marginTop: 1 }}>AI Practice Suite</div>
             </div>
-          ))}
+          </div>
+          {/* SWRL score mini-badges */}
+          {latest && (
+            <div style={{ display: "flex", gap: 5 }}>
+              {["S","W","R","L"].map(z => latest[z] != null && (
+                <div key={z} style={{ flex: 1, background: `${ZONE_COLOR[z]}12`, border: `1px solid ${ZONE_COLOR[z]}25`, borderRadius: 8, padding: "4px 2px", textAlign: "center" }}>
+                  <div style={{ fontSize: 8, color: ZONE_COLOR[z], fontWeight: 700 }}>{z}</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: scoreColor(latest[z]), lineHeight: 1.2 }}>{latest[z]}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      </div>
 
-      {/* Nav tabs */}
-      <div style={{ background: "#0A1222", borderBottom: "1px solid #1E293B", paddingLeft: 24, display: "flex", overflowX: "auto" }}>
-        {tabs.map(t => (
-          <button key={t.id} className={`tab-btn${tab === t.id ? " active" : ""}`} onClick={() => setTab(t.id)}>
-            {t.icon} {t.label}
+        {/* PRACTICE section */}
+        <div className="nav-section">Practice</div>
+        {PRACTICE_ZONES.map(zone => {
+          const zoneActive = tab === zone.id;
+          return (
+            <div key={zone.id}>
+              <button
+                className={`nav-zone${zoneActive ? " active" : ""}`}
+                onClick={() => { setTab(zone.id); }}
+              >
+                <div className="nav-zone-tag" style={{ background: `${zone.color}20`, color: zone.color }}>
+                  {zone.tag}
+                </div>
+                <span>{zone.label}</span>
+              </button>
+              {zone.sub.map(s => {
+                const active = isSubActive(zone.id, s.id);
+                return (
+                  <button
+                    key={s.id}
+                    className={`nav-sub${active ? " active" : ""}`}
+                    style={{ "--zone-color": zone.color }}
+                    onClick={() => nav(zone.id, s.id)}
+                  >
+                    <span style={{ flex: 1 }}>{s.label}</span>
+                    {s.weight && <span className="nav-sub-weight" style={{ color: active ? zone.color : undefined }}>{s.weight}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })}
+
+        {/* TOOLS section */}
+        <div className="nav-section" style={{ marginTop: 8 }}>Tools</div>
+        {TOOL_ITEMS.map(t => (
+          <button
+            key={t.id}
+            className={`nav-tool${tab === t.id ? " active" : ""}`}
+            onClick={() => setTab(t.id)}
+          >
+            <span className="nav-tool-icon">{t.icon}</span>
+            {t.label}
           </button>
         ))}
       </div>
 
+      {/* ── MAIN CONTENT ── */}
+      <div style={{ flex: 1, overflowY: "auto", minWidth: 0 }}>
       <div style={{ maxWidth: 960, margin: "0 auto", padding: "28px 24px" }}>
 
         {/* ───── PRIORITY MAP ───── */}
@@ -817,6 +933,7 @@ export default function PTEMaster() {
         {tab === "game" && <GamificationPanel />}
         {tab === "prod" && <ProductionReadinessPanel />}
 
+      </div>
       </div>
     </div>
   );
