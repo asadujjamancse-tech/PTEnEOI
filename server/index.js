@@ -18,6 +18,14 @@ app.use(express.json())
 const API_KEY = process.env.ANTHROPIC_API_KEY
 if (!API_KEY) console.warn('Warning: ANTHROPIC_API_KEY not set in environment; scoring will fail until you set it in .env')
 
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY
+const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini'
+const SUPABASE_URL = process.env.SUPABASE_URL || ''
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || ''
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || ''
+const STRIPE_PRICE_PREMIUM = process.env.STRIPE_PRICE_PREMIUM || ''
+const APP_URL = process.env.APP_URL || 'http://localhost:5173'
+
 // A small example proxy route scrapes a public website and returns structured rows.
 const INVITATION_ROUNDS_URL = 'https://immi.homeaffairs.gov.au/visas/working-in-australia/skillselect/invitation-rounds'
 
@@ -98,6 +106,111 @@ app.post('/api/score', async (req, res) => {
     console.error('proxy error', err)
     res.status(500).json({ error: 'proxy error', details: String(err) })
   }
+})
+
+async function callOpenAI(messages, responseFormat) {
+  if (!OPENAI_API_KEY) {
+    const error = new Error('OPENAI_API_KEY is not configured')
+    error.status = 503
+    throw error
+  }
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      messages,
+      temperature: 0.3,
+      response_format: responseFormat,
+    }),
+  })
+
+  const data = await response.json()
+  if (!response.ok) {
+    const error = new Error(data?.error?.message || 'OpenAI request failed')
+    error.status = response.status
+    throw error
+  }
+  return data
+}
+
+app.post('/api/openai/essay-feedback', async (req, res) => {
+  try {
+    const essay = String(req.body?.essay || '').slice(0, 8000)
+    if (!essay.trim()) return res.status(400).json({ error: 'essay is required' })
+
+    const data = await callOpenAI([
+      { role: 'system', content: 'You are a concise PTE Academic essay tutor. Return actionable feedback, weak sentences, and a predicted score. Keep it short.' },
+      { role: 'user', content: essay },
+    ])
+    const feedback = data.choices?.[0]?.message?.content || ''
+    res.json({ feedback, model: OPENAI_MODEL })
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'essay feedback failed' })
+  }
+})
+
+app.post('/api/openai/tutor-chat', async (req, res) => {
+  try {
+    const messages = Array.isArray(req.body?.messages) ? req.body.messages.slice(-12) : []
+    const data = await callOpenAI([
+      { role: 'system', content: 'You are a PTE Academic tutor. Give direct strategy, feedback, and study recommendations. Keep replies under 120 words.' },
+      ...messages.map((message) => ({
+        role: message.role === 'user' ? 'user' : 'assistant',
+        content: String(message.content || '').slice(0, 2000),
+      })),
+    ])
+    res.json({ reply: data.choices?.[0]?.message?.content || '', model: OPENAI_MODEL })
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'tutor chat failed' })
+  }
+})
+
+app.get('/api/supabase/config', (_req, res) => {
+  res.json({
+    enabled: Boolean(SUPABASE_URL && SUPABASE_ANON_KEY),
+    url: SUPABASE_URL,
+    anonKey: SUPABASE_ANON_KEY,
+    rlsRequired: true,
+    tables: ['profiles', 'practice_attempts', 'mock_results', 'study_plans', 'favorites'],
+  })
+})
+
+app.post('/api/billing/create-checkout-session', async (req, res) => {
+  if (!STRIPE_SECRET_KEY || !STRIPE_PRICE_PREMIUM) {
+    return res.status(503).json({ error: 'Stripe is not configured' })
+  }
+
+  try {
+    const params = new URLSearchParams({
+      mode: 'subscription',
+      success_url: `${APP_URL}?billing=success`,
+      cancel_url: `${APP_URL}?billing=cancelled`,
+      'line_items[0][price]': STRIPE_PRICE_PREMIUM,
+      'line_items[0][quantity]': '1',
+    })
+    const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${STRIPE_SECRET_KEY}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params,
+    })
+    const data = await response.json()
+    if (!response.ok) return res.status(response.status).json(data)
+    res.json({ url: data.url, id: data.id })
+  } catch (err) {
+    res.status(500).json({ error: 'checkout failed', details: String(err) })
+  }
+})
+
+app.post('/api/billing/portal', (_req, res) => {
+  res.status(501).json({ error: 'Billing portal requires a persisted Stripe customer id after auth is enabled.' })
 })
 
 // GET /api/invitation-rounds

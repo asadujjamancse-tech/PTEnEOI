@@ -1,0 +1,10 @@
+{
+  "name": "PTE 90 Master",
+  "short_name": "PTE Master",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#070D1A",
+  "theme_color": "#070D1A",
+  "description": "PTE practice, scoring, EOI prediction, and analytics dashboard.",
+  "icons": []
+}

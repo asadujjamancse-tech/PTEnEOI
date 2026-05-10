@@ -9,6 +9,18 @@
 //   consider splitting the file into smaller components (e.g., ScorerPanel, TrackerPanel).
 import { useState } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import EssayFeedbackPanel from "./components/EssayFeedbackPanel";
+import PriorityIntelligencePanel from "./components/PriorityIntelligencePanel";
+import {
+  AIQuestionBank,
+  AnalyticsDashboard,
+  DescribeImageTrainer,
+  GamificationPanel,
+  MockTestSystem,
+  ProductionReadinessPanel,
+  RepeatSentencePractice,
+  StudyPlanner,
+} from "./components/PTEAdvancedPanels";
 
 // Simple constants used for display colours and labels.
 const ZONE_COLOR = { S: "#38BDF8", W: "#A78BFA", R: "#34D399", L: "#FBBF24" };
@@ -155,6 +167,12 @@ export default function PTEMaster() {
     { id: "scorer", icon: "🤖", label: "AI Scorer" },
     { id: "tracker", icon: "📊", label: "Score Tracker" },
     { id: "qbank", icon: "📚", label: "Question Bank" },
+    { id: "mock", icon: "🧪", label: "Mock Tests" },
+    { id: "speaking", icon: "🎙️", label: "Speaking Zone" },
+    { id: "planner", icon: "🗓️", label: "Study Planner" },
+    { id: "analytics", icon: "📈", label: "Analytics" },
+    { id: "game", icon: "🏆", label: "Gamification" },
+    { id: "prod", icon: "🚀", label: "Production" },
   ];
 
   const qTaskTabs = [
@@ -229,6 +247,8 @@ export default function PTEMaster() {
         {/* ───── PRIORITY MAP ───── */}
         {tab === "priority" && (
           <div>
+            <PriorityIntelligencePanel latestScores={latest} />
+
             <div style={{ background: "#0C1B35", border: "1px solid #1D4ED8", borderRadius: 12, padding: "16px 20px", marginBottom: 24 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#60A5FA", marginBottom: 6 }}>⚡ The 80% Rule — Where Your Score Actually Comes From</div>
               <p style={{ color: "#94A3B8", fontSize: 13, margin: 0, lineHeight: 1.7 }}>
@@ -335,6 +355,8 @@ export default function PTEMaster() {
                 Word count: {wc(userText)} / 200–300 {wc(userText) < 200 ? "⚠ too short" : wc(userText) > 300 ? "⚠ too long" : "✓ good length"}
               </div>
             )}
+
+            {scorerTask === "write_essay" && <EssayFeedbackPanel text={userText} />}
 
             <button className="btn-primary" onClick={scoreResponse} disabled={!userText.trim() || scoring} style={{ width: "100%", padding: "14px", fontSize: 14, marginTop: 14 }}>
               {scoring ? "⏳ Scoring your response..." : "🤖 Score My Response"}
@@ -605,8 +627,24 @@ export default function PTEMaster() {
                 <button className="send-to-scorer" onClick={() => { setUserText(qAnswers[qi]||""); setScorerTask(qTask === "read_aloud" ? "read_aloud" : qTask); setTab("scorer"); }}>→ Send to AI Scorer</button>
               </div>
             ))}
+
+            <div style={{ marginTop: 24 }}>
+              <AIQuestionBank />
+            </div>
           </div>
         )}
+
+        {tab === "mock" && <MockTestSystem />}
+        {tab === "speaking" && (
+          <div style={{ display: "grid", gap: 24 }}>
+            <RepeatSentencePractice />
+            <DescribeImageTrainer />
+          </div>
+        )}
+        {tab === "planner" && <StudyPlanner />}
+        {tab === "analytics" && <AnalyticsDashboard />}
+        {tab === "game" && <GamificationPanel />}
+        {tab === "prod" && <ProductionReadinessPanel />}
 
       </div>
     </div>

@@ -1,2 +1,9 @@
 html,body,#root { height: 100%; margin: 0; }
 body { background: #080E1A; }
+button, input, textarea, select { touch-action: manipulation; }
+
+@media (max-width: 760px) {
+  body { overflow-x: hidden; }
+  table { min-width: 560px; }
+  .tab-btn, .main-tab, .qtab { min-height: 40px; }
+}

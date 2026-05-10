@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import EOIInsightsPanel from './components/EOIInsightsPanel'
 
 const INVITATION_ROUNDS_API = '/api/invitation-rounds'
 
@@ -82,6 +83,9 @@ export default function EOIPulse() {
 
   const waiting = summary.SUBMITTED + summary.HOLD
   const latestRound = publicRounds[0]
+  const predictionPoints = filteredRows.length ? Math.max(...filteredRows.map((row) => row.points || 0), 65) : 65
+  const predictionOccupation = filteredRows[0]?.occupation || occupationFilter || 'Selected occupation'
+  const predictionState = filteredRows[0]?.visa || ''
 
   const onUpload = async (event) => {
     const file = event.target.files?.[0]
@@ -199,7 +203,14 @@ export default function EOIPulse() {
           </div>
         </div>
 
-        <div style={{ background: '#0A1222', border: '1px solid #1E293B', borderRadius: 12, overflow: 'hidden' }}>
+        <EOIInsightsPanel
+          points={predictionPoints}
+          occupation={predictionOccupation}
+          state={predictionState}
+          rounds={publicRounds}
+        />
+
+        <div style={{ background: '#0A1222', border: '1px solid #1E293B', borderRadius: 12, overflowX: 'auto', overflowY: 'hidden' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 95px 90px 110px', padding: '10px 14px', borderBottom: '1px solid #1E293B', color: '#64748B', fontWeight: 700, fontSize: 11 }}>
             <div>ANZSCO</div><div>Occupation</div><div>Visa</div><div>Points</div><div>Status</div>
           </div>

@@ -9,6 +9,8 @@ import PTEMaster from './PTEMaster'
 import PTEWeights from './PTEWeights'
 import PRDashboard from './pte-pr-dashboard_4'
 import EOIPulse from './EOIPulse'
+import AITutorChat from './components/AITutorChat'
+import ErrorBoundary from './components/ErrorBoundary'
 import './index.css' // global styles
 
 function AppSwitcher() {
@@ -41,12 +43,15 @@ function AppSwitcher() {
       <div style={{ minHeight: '100vh' }}>
         {view === 'master' ? <PTEMaster /> : view === 'weights' ? <PTEWeights /> : view === 'dashboard' ? <PRDashboard /> : <EOIPulse />}
       </div>
+      <AITutorChat />
     </div>
   )
 }
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <AppSwitcher />
+    <ErrorBoundary>
+      <AppSwitcher />
+    </ErrorBoundary>
   </React.StrictMode>
 )
