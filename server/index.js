@@ -3,6 +3,7 @@
 require('dotenv').config()
 
 const express = require('express')
+const crypto = require('crypto')
 
 // Modern Node has global.fetch. If it's not available, fall back to node-fetch.
 const fetch = global.fetch || require('node-fetch')
@@ -20,6 +21,23 @@ if (!API_KEY) console.warn('Warning: ANTHROPIC_API_KEY not set in environment; s
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini'
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || ''
+const TUTOR_PASSWORD_RAW = process.env.TUTOR_PASSWORD || ''
+// Treat placeholder value as "not configured"
+const TUTOR_PASSWORD = (TUTOR_PASSWORD_RAW && TUTOR_PASSWORD_RAW !== 'your_password_here') ? TUTOR_PASSWORD_RAW : ''
+
+// In-memory session tokens — cleared on server restart (user re-enters password)
+const validTutorTokens = new Set()
+const GUEST_TOKEN = 'guest-no-password-required'
+
+function requireTutorAuth(req, res, next) {
+  if (!TUTOR_PASSWORD) return next()
+  const token = req.headers['x-tutor-token']
+  if (!token || (!validTutorTokens.has(token) && token !== GUEST_TOKEN)) {
+    return res.status(401).json({ error: 'Unauthorized. Please log in.' })
+  }
+  next()
+}
 const SUPABASE_URL = process.env.SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || ''
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || ''
@@ -170,6 +188,117 @@ app.post('/api/openai/tutor-chat', async (req, res) => {
   }
 })
 
+// GET /api/auth/tutor — tells the frontend whether a password is required
+app.get('/api/auth/tutor', (_req, res) => {
+  res.json({ required: Boolean(TUTOR_PASSWORD) })
+})
+
+// POST /api/auth/tutor — returns a session token on correct password (or guest token if none set)
+app.post('/api/auth/tutor', (req, res) => {
+  if (!TUTOR_PASSWORD) return res.json({ token: GUEST_TOKEN, noPasswordRequired: true })
+  if (req.body?.password !== TUTOR_PASSWORD) return res.status(401).json({ error: 'Incorrect password' })
+  const token = crypto.randomBytes(32).toString('hex')
+  validTutorTokens.add(token)
+  res.json({ token })
+})
+
+// POST /api/tutor/chat — unified multi-provider tutor chat (requires auth if TUTOR_PASSWORD is set)
+app.post('/api/tutor/chat', requireTutorAuth, async (req, res) => {
+  try {
+    const { messages = [], provider = 'claude' } = req.body
+    const history = Array.isArray(messages) ? messages.slice(-12) : []
+    const SYSTEM = 'You are a PTE Academic tutor. Give direct strategy, feedback, and study recommendations. Keep replies under 120 words.'
+
+    if (provider === 'openai') {
+      if (!OPENAI_API_KEY) return res.status(503).json({ error: 'OPENAI_API_KEY not configured in .env' })
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENAI_API_KEY}` },
+        body: JSON.stringify({
+          model: OPENAI_MODEL, max_tokens: 300, temperature: 0.4,
+          messages: [
+            { role: 'system', content: SYSTEM },
+            ...history.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: String(m.content || '').slice(0, 2000) })),
+          ],
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) return res.status(response.status).json({ error: data?.error?.message || 'OpenAI error' })
+      return res.json({ reply: data.choices?.[0]?.message?.content?.trim() || '', model: OPENAI_MODEL })
+    }
+
+    if (provider === 'gemini') {
+      if (!GEMINI_API_KEY) return res.status(503).json({ error: 'GEMINI_API_KEY not configured in .env' })
+      const contents = history.map(m => ({
+        role: m.role === 'user' ? 'user' : 'model',
+        parts: [{ text: String(m.content || '').slice(0, 2000) }],
+      }))
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ systemInstruction: { parts: [{ text: SYSTEM }] }, contents }),
+        }
+      )
+      const data = await response.json()
+      if (!response.ok) return res.status(response.status).json({ error: data?.error?.message || 'Gemini error' })
+      const reply = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || ''
+      return res.json({ reply, model: 'gemini-2.0-flash' })
+    }
+
+    // Default: Claude
+    if (!API_KEY) return res.status(503).json({ error: 'ANTHROPIC_API_KEY not configured in .env' })
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514', max_tokens: 300, system: SYSTEM,
+        messages: history.map(m => ({
+          role: m.role === 'user' ? 'user' : 'assistant',
+          content: String(m.content || '').slice(0, 2000),
+        })),
+      }),
+    })
+    const data = await response.json()
+    if (!response.ok) return res.status(response.status).json({ error: data?.error?.message || 'Claude error' })
+    const reply = (data.content || []).map(b => b.text || '').join('').trim()
+    res.json({ reply, model: 'claude-sonnet-4-20250514' })
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'tutor chat failed' })
+  }
+})
+
+app.post('/api/claude/tutor-chat', async (req, res) => {
+  try {
+    if (!API_KEY) return res.status(503).json({ error: 'ANTHROPIC_API_KEY is not configured' })
+    const messages = Array.isArray(req.body?.messages) ? req.body.messages.slice(-12) : []
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': API_KEY,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 300,
+        system: 'You are a PTE Academic tutor. Give direct strategy, feedback, and study recommendations. Keep replies under 120 words.',
+        messages: messages.map(m => ({
+          role: m.role === 'user' ? 'user' : 'assistant',
+          content: String(m.content || '').slice(0, 2000),
+        })),
+      }),
+    })
+    const data = await response.json()
+    if (!response.ok) return res.status(response.status).json({ error: data?.error?.message || 'Claude request failed' })
+    const reply = (data.content || []).map(b => b.text || '').join('').trim()
+    res.json({ reply, model: 'claude-sonnet-4-20250514' })
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'tutor chat failed' })
+  }
+})
+
 app.get('/api/supabase/config', (_req, res) => {
   res.json({
     enabled: Boolean(SUPABASE_URL && SUPABASE_ANON_KEY),
@@ -257,4 +386,17 @@ app.get('/api/invitation-rounds', async (_req, res) => {
 })
 
 const port = process.env.PORT || 3000
+// If a production build exists, serve it from the server so the app and API share the same origin.
+const path = require('path');
+const fs = require('fs');
+const distPath = path.join(__dirname, '..', 'dist');
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  // Serve index.html for any non-API route so client-side routing works.
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
+
 app.listen(port, () => console.log(`Proxy server listening on http://localhost:${port}`))

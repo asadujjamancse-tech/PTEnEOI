@@ -21,24 +21,29 @@ import {
   RepeatSentencePractice,
   StudyPlanner,
 } from "./components/PTEAdvancedPanels";
+import ReadAloudPanel from "./components/readAloud/ReadAloudPanel";
+import ReadingPanel from "./components/practice/ReadingPanel";
+import WritingPanel from "./components/practice/WritingPanel";
+import ListeningPanel from "./components/practice/ListeningPanel";
+import PriorityTaskDetail from "./components/PriorityTaskDetail";
 
 // Simple constants used for display colours and labels.
 const ZONE_COLOR = { S: "#38BDF8", W: "#A78BFA", R: "#34D399", L: "#FBBF24" };
 const ZONE_NAME = { S: "Speaking", W: "Writing", R: "Reading", L: "Listening" };
 
 const PRIORITY_TASKS = [
-  { id: "read_aloud", name: "Read Aloud", zone: "S", vvi: 5, skills: ["Speaking", "Reading"], tip: "Pace 70–80 wpm. Stress content words. Zero hesitation. Do 5–7/day." },
-  { id: "repeat_sentence", name: "Repeat Sentence", zone: "S", vvi: 5, skills: ["Speaking", "Listening"], tip: "Capture rhythm + meaning. Even partial sentences score. Do 10–15/day." },
-  { id: "describe_image", name: "Describe Image", zone: "S", vvi: 4, skills: ["Speaking"], tip: "Template: Intro → Main trend → Detail → Conclusion in 40 sec." },
-  { id: "retell_lecture", name: "Re-tell Lecture", zone: "S", vvi: 4, skills: ["Speaking", "Listening"], tip: "Note keywords during audio. Speak 3–4 sentences confidently." },
-  { id: "write_essay", name: "Write Essay", zone: "W", vvi: 5, skills: ["Writing"], tip: "200–300 words exactly. 4 paras. Use discourse markers. NEVER go under 200!" },
-  { id: "summarize_written", name: "Summarize Written Text", zone: "W", vvi: 5, skills: ["Writing", "Reading"], tip: "ONE sentence, 5–75 words. Use compound-complex structure." },
-  { id: "rw_fitb", name: "R&W Fill in the Blanks", zone: "R", vvi: 5, skills: ["Reading", "Writing"], tip: "Drag & Drop. Check collocation + grammar. Highest Reading weight!" },
-  { id: "reorder", name: "Reorder Paragraph", zone: "R", vvi: 4, skills: ["Reading"], tip: "Find topic sentence first. Track pronoun references as clues." },
-  { id: "r_fitb", name: "Fill in Blanks (Drop-down)", zone: "R", vvi: 4, skills: ["Reading"], tip: "Grammar + vocab. Eliminate wrong options by part of speech first." },
-  { id: "write_dictation", name: "Write From Dictation", zone: "L", vvi: 5, skills: ["Listening", "Writing"], tip: "Every word = points. EXACT spelling. ~8 items. Highest Listening weight!" },
-  { id: "summarize_spoken", name: "Summarize Spoken Text", zone: "L", vvi: 4, skills: ["Listening"], tip: "50–70 words. Write keywords DURING audio. Cover main idea + 2 details." },
-  { id: "l_fitb", name: "Fill in Blanks (Type In)", zone: "L", vvi: 4, skills: ["Listening"], tip: "Exact spelling. Anticipate word from context BEFORE you hear it." },
+  { id: "read_aloud", name: "Read Aloud", zone: "S", vvi: 5, skills: ["Speaking", "Reading"], weight: 15, brief: "Read a 60–90 word passage aloud. 35s preparation + 40s speaking time. Scores both Speaking (fluency, pronunciation, content) AND Reading simultaneously — the highest dual-skill ROI task in the whole test.", tip: "Pace 70–80 wpm. Stress content words. Zero hesitation. Do 5–7/day." },
+  { id: "repeat_sentence", name: "Repeat Sentence", zone: "S", vvi: 5, skills: ["Speaking", "Listening"], weight: 13, brief: "Listen to a sentence (3–9 seconds) and repeat it verbatim immediately after. Scores Speaking AND Listening. No preparation time — pure auditory memory and clear articulation under pressure.", tip: "Capture rhythm + meaning. Even partial sentences score. Do 10–15/day." },
+  { id: "describe_image", name: "Describe Image", zone: "S", vvi: 4, skills: ["Speaking"], weight: 10, brief: "Describe a graph, chart, map or process image in 40 seconds. Purely Speaking. You have 25s preparation. A fixed 4-part template removes all guesswork and lets you focus on fluency.", tip: "Template: Intro → Main trend → Detail → Conclusion in 40 sec." },
+  { id: "retell_lecture", name: "Re-tell Lecture", zone: "S", vvi: 4, skills: ["Speaking", "Listening"], weight: 8, brief: "Listen to a 60–90s audio lecture then re-tell key points in your own words within 40 seconds. Scores Speaking AND Listening. Keyword notes during audio are essential — you cannot replay it.", tip: "Note keywords during audio. Speak 3–4 sentences confidently." },
+  { id: "write_essay", name: "Write Essay", zone: "W", vvi: 5, skills: ["Writing"], weight: 24, brief: "Write a 200–300 word argumentative or discursive essay in 20 minutes. Purely Writing. Scored on Content, Form (word count), Grammar range, Vocabulary range, and Spelling. Going under 200 words caps your Form score at 0.", tip: "200–300 words exactly. 4 paras. Use discourse markers. NEVER go under 200!" },
+  { id: "summarize_written", name: "Summarize Written Text", zone: "W", vvi: 5, skills: ["Writing", "Reading"], weight: 15, brief: "Read a passage and write a single-sentence summary in 5–75 words within 10 minutes. Scores Writing AND Reading. The one-sentence rule is non-negotiable — a multi-sentence response scores 0 on Form.", tip: "ONE sentence, 5–75 words. Use compound-complex structure." },
+  { id: "rw_fitb", name: "R&W Fill in the Blanks", zone: "R", vvi: 5, skills: ["Reading", "Writing"], weight: 18, brief: "Drag words from a choice box into blanks in a reading passage. Scores Reading AND Writing. Tests collocation awareness and grammatical fit — check part of speech and surrounding words before committing.", tip: "Drag & Drop. Check collocation + grammar. Highest Reading weight!" },
+  { id: "reorder", name: "Reorder Paragraph", zone: "R", vvi: 4, skills: ["Reading"], weight: 13, brief: "Drag shuffled text boxes into the correct logical order to form a coherent paragraph. Purely Reading. Identify the topic sentence (no pronoun reference, broadest idea) first, then chain the rest using discourse markers and pronoun links.", tip: "Find topic sentence first. Track pronoun references as clues." },
+  { id: "r_fitb", name: "Fill in Blanks (Drop-down)", zone: "R", vvi: 4, skills: ["Reading"], weight: 10, brief: "Select the correct word from a drop-down list to complete blanks in a reading text. Purely Reading. Each blank tests vocabulary in context — eliminate options by grammatical category first, then by collocational fit.", tip: "Grammar + vocab. Eliminate wrong options by part of speech first." },
+  { id: "write_dictation", name: "Write From Dictation", zone: "L", vvi: 5, skills: ["Listening", "Writing"], weight: 22, brief: "Listen to a sentence once (no replay) and type it verbatim. Scores Listening AND Writing. Every word and every spelling counts — there is no partial credit per word. Typically ~8 items; the highest single-task weight in Listening.", tip: "Every word = points. EXACT spelling. ~8 items. Highest Listening weight!" },
+  { id: "summarize_spoken", name: "Summarize Spoken Text", zone: "L", vvi: 4, skills: ["Listening"], weight: 14, brief: "Listen to a 60–90s lecture once and write a 50–70 word summary in 10 minutes. Purely Listening. Note keywords and the main idea during playback — you cannot replay. Scored on Content, Form, Vocabulary, Spelling.", tip: "50–70 words. Write keywords DURING audio. Cover main idea + 2 details." },
+  { id: "l_fitb", name: "Fill in Blanks (Type In)", zone: "L", vvi: 4, skills: ["Listening"], weight: 12, brief: "Listen to an audio recording and type the missing words directly into blanks (no word bank provided). Purely Listening. Exact spelling is required. Anticipate the word type from context in the sentence before you hear the blank filled.", tip: "Exact spelling. Anticipate word from context BEFORE you hear it." },
 ];
 
 const SAMPLE_QS = {
@@ -114,6 +119,19 @@ export default function PTEMaster() {
     { date: "2026-05-07", S: 88, W: 85, R: 79, L: 83 },
   ]);
   const [form, setForm] = useState({ date: new Date().toISOString().slice(0, 10), S: "", W: "", R: "", L: "" });
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [customTips, setCustomTips] = useState(() => {
+    const saved = {};
+    PRIORITY_TASKS.forEach(t => {
+      const v = localStorage.getItem(`pte_tip_${t.id}`);
+      if (v !== null) saved[t.id] = v;
+    });
+    return saved;
+  });
+  const saveCustomTip = (id, value) => {
+    localStorage.setItem(`pte_tip_${id}`, value);
+    setCustomTips(prev => ({ ...prev, [id]: value }));
+  };
   const [qTask, setQTask] = useState("write_essay");
   const [qAnswers, setQAnswers] = useState({});
   const [qRevealed, setQRevealed] = useState({});
@@ -279,22 +297,38 @@ export default function PTEMaster() {
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
                   {PRIORITY_TASKS.filter(t => t.zone === zone).map(task => (
-                    <div key={task.id} className="task-card" style={task.vvi===5 ? { borderColor: ZONE_COLOR[zone]+"40", boxShadow: `0 0 0 1px ${ZONE_COLOR[zone]}20` } : {}}>
+                    <div
+                      key={task.id}
+                      className="task-card"
+                      onClick={() => setSelectedTask(task)}
+                      style={{
+                        cursor: "pointer",
+                        ...(task.vvi===5 ? { borderColor: ZONE_COLOR[zone]+"40", boxShadow: `0 0 0 1px ${ZONE_COLOR[zone]}20` } : {}),
+                      }}
+                    >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontWeight: 700, fontSize: 14, color: "#E2E8F0" }}>{task.name}</div>
                           <div style={{ marginTop: 6 }}>
                             {task.skills.map(s => <span key={s} className="pill">{s}</span>)}
                           </div>
                         </div>
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ color: task.vvi===5 ? "#FBBF24" : "#475569", fontSize: 13 }}>{"★".repeat(task.vvi)}{"☆".repeat(5-task.vvi)}</div>
-                          <div style={{ fontSize: 10, fontWeight: 700, color: task.vvi===5 ? "#FBBF24" : "#475569", marginTop: 2 }}>{task.vvi===5 ? "CRITICAL" : "HIGH"}</div>
+                        <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 10 }}>
+                          <div style={{ color: task.vvi===5 ? "#FBBF24" : "#94A3B8", fontSize: 13, letterSpacing: 1 }}>{"★".repeat(task.vvi)}{"☆".repeat(5-task.vvi)}</div>
+                          <div style={{ display: "flex", gap: 5, justifyContent: "flex-end", alignItems: "center", marginTop: 4 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: ZONE_COLOR[zone] }}>~{task.weight}%</span>
+                            <span style={{
+                              fontSize: 9, fontWeight: 800, letterSpacing: .5, borderRadius: 4, padding: "2px 6px",
+                              background: task.vvi===5 ? "#78350F" : "#1E3A2F",
+                              color: task.vvi===5 ? "#FCD34D" : "#6EE7B7",
+                            }}>{task.vvi===5 ? "CRITICAL" : "HIGH"}</span>
+                          </div>
                         </div>
                       </div>
                       <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #1E293B", color: "#64748B", fontSize: 12, lineHeight: 1.6 }}>
-                        💡 {task.tip}
+                        💡 {customTips[task.id] ?? task.tip}
                       </div>
+                      <div style={{ marginTop: 8, fontSize: 11, color: "#334155" }}>Tap to open →</div>
                     </div>
                   ))}
                 </div>
@@ -309,6 +343,15 @@ export default function PTEMaster() {
                 )) }
               </div>
             </div>
+
+            {selectedTask && (
+              <PriorityTaskDetail
+                task={selectedTask}
+                customTip={customTips[selectedTask.id] ?? null}
+                onSaveTip={saveCustomTip}
+                onClose={() => setSelectedTask(null)}
+              />
+            )}
           </div>
         )}
 
@@ -637,8 +680,24 @@ export default function PTEMaster() {
         {tab === "mock" && <MockTestSystem />}
         {tab === "speaking" && (
           <div style={{ display: "grid", gap: 24 }}>
+            <ReadAloudPanel />
             <RepeatSentencePractice />
             <DescribeImageTrainer />
+          </div>
+        )}
+        {tab === "reading" && (
+          <div>
+            <ReadingPanel />
+          </div>
+        )}
+        {tab === "writing" && (
+          <div>
+            <WritingPanel />
+          </div>
+        )}
+        {tab === "listening" && (
+          <div>
+            <ListeningPanel />
           </div>
         )}
         {tab === "planner" && <StudyPlanner />}
