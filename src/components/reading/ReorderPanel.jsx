@@ -28,6 +28,7 @@ export default function ReorderPanel() {
   const [left, setLeft] = useState(shuffled);
   const [right, setRight] = useState([]);
   const [submitted, setSubmitted] = useState(false);
+  const [showStrategy, setShowStrategy] = useState(false);
   const { addPracticeScore } = useScoreTracker();
 
   const maxPairs = q.sentences.length - 1;
@@ -53,7 +54,7 @@ export default function ReorderPanel() {
 
   const next = () => {
     setIdx(i => (i + 1) % QUESTIONS.length);
-    setSubmitted(false);
+    setSubmitted(false); setShowStrategy(false);
     const nq = QUESTIONS[(idx + 1) % QUESTIONS.length];
     const ns = shuffle(nq.sentences);
     setLeft(ns); setRight([]);
@@ -117,6 +118,24 @@ export default function ReorderPanel() {
           ))}
         </div>
       )}
+
+      <div style={{ marginBottom: 12 }}>
+        <button className="reveal-btn" onClick={() => setShowStrategy(v => !v)}>
+          {showStrategy ? "Hide strategy" : "📋 Show Reorder Paragraph strategy"}
+        </button>
+        {showStrategy && (
+          <div style={{ marginTop: 8, background: "#052E1C", border: "1px solid #064E3B", borderRadius: 8, padding: "10px 14px" }}>
+            <div style={{ fontSize: 11, color: "#34D399", fontWeight: 700, marginBottom: 6 }}>PTE REORDER PARAGRAPH — STRATEGY</div>
+            <ul style={{ paddingLeft: 18, margin: 0, color: "#6EE7B7", fontSize: 12, lineHeight: 1.9 }}>
+              <li><strong>Step 1 — Find the topic sentence:</strong> no pronoun refers to unknown entity, most general idea, no "However/Therefore/This" opener.</li>
+              <li><strong>Step 2 — Chain pronouns:</strong> "it/they/this/these" must follow their referent (e.g. "this approach" follows the sentence that introduced the approach).</li>
+              <li><strong>Step 3 — Use discourse markers:</strong> "Furthermore/Moreover" = adding; "However/Nevertheless" = contrasting; "Therefore/Consequently" = result; "Finally/In conclusion" = last sentence.</li>
+              <li><strong>Step 4 — Check logical flow:</strong> general → specific → examples → conclusion.</li>
+              <li>Scoring: 1 pt per correct adjacent pair. N sentences = N-1 max pts. Even partial is rewarded.</li>
+            </ul>
+          </div>
+        )}
+      </div>
 
       <div style={{ display: "flex", gap: 8 }}>
         {!submitted && right.length === q.sentences.length && (

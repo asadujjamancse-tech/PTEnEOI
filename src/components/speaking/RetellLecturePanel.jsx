@@ -11,6 +11,7 @@ export default function RetellLecturePanel() {
   const [transcript, setTranscript] = useState("");
   const [score, setScore] = useState(null);
   const [scoring, setScoring] = useState(false);
+  const [showStrategy, setShowStrategy] = useState(false);
   const { addPracticeScore } = useScoreTracker();
   const recognitionRef = useRef(null);
   const transcriptRef = useRef("");
@@ -75,7 +76,7 @@ export default function RetellLecturePanel() {
     setScoring(true);
     const text = transcriptRef.current.trim() || transcript;
     try {
-      const result = await callClaudeScore({ skill: "read_aloud", question: q.audio, answer: text || "No response recorded." });
+      const result = await callClaudeScore({ skill: "retell_lecture", question: q.audio, answer: text || "No response recorded." });
       setScore(result);
       if (result?.overall) addPracticeScore("S", result.overall);
     } catch {
@@ -88,7 +89,7 @@ export default function RetellLecturePanel() {
 
   const next = () => {
     setIdx(i => (i + 1) % RETELL_QS.length);
-    setPhase("intro"); setTimer(0); setTranscript(""); setScore(null); setScoring(false);
+    setPhase("intro"); setTimer(0); setTranscript(""); setScore(null); setScoring(false); setShowStrategy(false);
     transcriptRef.current = ""; clearInterval(timerRef.current); window.speechSynthesis?.cancel();
   };
 
@@ -156,12 +157,17 @@ export default function RetellLecturePanel() {
             <div style={{ background: "#071226", borderRadius: 10, padding: 14 }}>
               <div style={{ fontWeight: 700, marginBottom: 10 }}>AI Score</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-                {[["Overall", score.overall], ["Fluency", score.fluency], ["Pronunciation", score.pronunciation], ["Content", score.content]].map(([l, v]) => (
+                {[["Overall", score.overall, 90], ["Content", score.content, 3], ["Oral Fluency", score.oral_fluency, 5], ["Pronunciation", score.pronunciation, 5]].map(([l, v, max]) => (
                   <div key={l} style={{ background: "#0A1828", borderRadius: 8, padding: 8, textAlign: "center" }}>
                     <div style={{ fontSize: 10, color: "#64748B", fontWeight: 700 }}>{l}</div>
-                    <div style={{ fontSize: 20, fontWeight: 800, marginTop: 2, color: (v >= 79 || v >= 4) ? "#34D399" : v >= 65 || v >= 3 ? "#FBBF24" : "#F87171" }}>{v ?? "–"}</div>
+                    <div style={{ fontSize: 20, fontWeight: 800, marginTop: 2, color: v >= (max * 0.8) ? "#34D399" : v >= (max * 0.5) ? "#FBBF24" : "#F87171" }}>
+                      {v ?? "–"}{l !== "Overall" ? `/${max}` : ""}
+                    </div>
                   </div>
                 ))}
+              </div>
+              <div style={{ marginTop: 8, fontSize: 11, color: "#475569" }}>
+                Official rubric: Content 0-3 · Oral Fluency 0-5 · Pronunciation 0-5
               </div>
               {score.fix_now?.length > 0 && (
                 <ul style={{ marginTop: 10, paddingLeft: 18, color: "#94A3B8", fontSize: 12, lineHeight: 1.7 }}>
@@ -172,6 +178,29 @@ export default function RetellLecturePanel() {
           )}
         </div>
       )}
+
+      <div style={{ marginBottom: 12 }}>
+        <button className="reveal-btn" onClick={() => setShowStrategy(v => !v)}>
+          {showStrategy ? "Hide strategy" : "📋 Show Re-tell Lecture strategy"}
+        </button>
+        {showStrategy && (
+          <div style={{ marginTop: 8, background: "#052E1C", border: "1px solid #064E3B", borderRadius: 8, padding: "10px 14px" }}>
+            <div style={{ fontSize: 11, color: "#34D399", fontWeight: 700, marginBottom: 6 }}>PTE RE-TELL LECTURE — STRATEGY</div>
+            <ul style={{ paddingLeft: 18, margin: 0, color: "#6EE7B7", fontSize: 12, lineHeight: 1.9 }}>
+              <li>During audio: note 4-5 keywords only — topic, action, result, conclusion.</li>
+              <li>Use the template: "The lecture was about [topic]. The speaker discussed [point 1] and [point 2]. In conclusion, [main takeaway]."</li>
+              <li>Speak at 70-80 wpm — natural pace, no rushing.</li>
+              <li>3-4 sentences cover all key points without rambling.</li>
+              <li>Start speaking the moment recording begins — silence = lost marks.</li>
+              <li>Even if you missed detail, keep speaking — fluency matters as much as content.</li>
+            </ul>
+            <div style={{ marginTop: 8, fontSize: 11, color: "#34D399", fontWeight: 700 }}>SCORING:</div>
+            <div style={{ fontSize: 12, color: "#6EE7B7", marginTop: 4 }}>
+              Content 0-3 · Oral Fluency 0-5 · Pronunciation 0-5 → max 13 pts
+            </div>
+          </div>
+        )}
+      </div>
 
       <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
         {phase === "intro" && <button className="btn-primary" style={{ padding: "8px 20px" }} onClick={playLecture}>▶ Play Lecture</button>}

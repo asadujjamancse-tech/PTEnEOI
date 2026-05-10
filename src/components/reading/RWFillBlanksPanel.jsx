@@ -20,6 +20,7 @@ export default function RWFillBlanksPanel() {
   const [idx, setIdx] = useState(0);
   const [answers, setAnswers] = useState([]);
   const [submitted, setSubmitted] = useState(false);
+  const [showStrategy, setShowStrategy] = useState(false);
   const { addPracticeScore } = useScoreTracker();
   const q = QUESTIONS[idx];
   const blankCount = (q.passage.match(/{BLANK}/g) || []).length;
@@ -51,7 +52,7 @@ export default function RWFillBlanksPanel() {
 
   const next = () => {
     setIdx(i => (i + 1) % QUESTIONS.length);
-    setAnswers([]); setSubmitted(false);
+    setAnswers([]); setSubmitted(false); setShowStrategy(false);
   };
 
   const usedWords = answers.filter(Boolean);
@@ -131,6 +132,25 @@ export default function RWFillBlanksPanel() {
           </div>
         </div>
       )}
+
+      <div style={{ marginBottom: 12 }}>
+        <button className="reveal-btn" onClick={() => setShowStrategy(v => !v)}>
+          {showStrategy ? "Hide strategy" : "📋 Show R&W Fill in Blanks strategy"}
+        </button>
+        {showStrategy && (
+          <div style={{ marginTop: 8, background: "#052E1C", border: "1px solid #064E3B", borderRadius: 8, padding: "10px 14px" }}>
+            <div style={{ fontSize: 11, color: "#34D399", fontWeight: 700, marginBottom: 6 }}>PTE R&W FILL IN THE BLANKS — STRATEGY</div>
+            <ul style={{ paddingLeft: 18, margin: 0, color: "#6EE7B7", fontSize: 12, lineHeight: 1.9 }}>
+              <li><strong>Step 1 — Part of speech:</strong> identify whether the blank needs a noun, verb, adjective, or adverb.</li>
+              <li><strong>Step 2 — Grammar fit:</strong> check subject-verb agreement, tense, singular/plural.</li>
+              <li><strong>Step 3 — Collocation:</strong> which word "sounds right" with adjacent words? (e.g. "conduct research" not "make research").</li>
+              <li><strong>Step 4 — Context:</strong> the surrounding sentences give clues about meaning.</li>
+              <li>Each blank = 1 pt for Reading AND 1 pt for Writing. Highest dual-skill weight in the test (18%).</li>
+              <li>Never leave a blank empty — eliminate and guess if needed.</li>
+            </ul>
+          </div>
+        )}
+      </div>
 
       <div style={{ display: "flex", gap: 8 }}>
         {!submitted && answers.filter(Boolean).length === blankCount && (
