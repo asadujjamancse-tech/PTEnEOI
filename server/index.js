@@ -26,9 +26,40 @@ const TUTOR_PASSWORD_RAW = process.env.TUTOR_PASSWORD || ''
 // Treat placeholder value as "not configured"
 const TUTOR_PASSWORD = (TUTOR_PASSWORD_RAW && TUTOR_PASSWORD_RAW !== 'your_password_here') ? TUTOR_PASSWORD_RAW : ''
 
+// App-wide login credentials
+const APP_USERNAME_RAW = process.env.APP_USERNAME || ''
+const APP_PASSWORD_RAW2 = process.env.APP_PASSWORD || ''
+const APP_USERNAME = (APP_USERNAME_RAW && APP_USERNAME_RAW !== 'your_username_here') ? APP_USERNAME_RAW : ''
+const APP_PASSWORD = (APP_PASSWORD_RAW2 && APP_PASSWORD_RAW2 !== 'your_password_here') ? APP_PASSWORD_RAW2 : ''
+const validAppTokens = new Set()
+
 // In-memory session tokens — cleared on server restart (user re-enters password)
 const validTutorTokens = new Set()
 const GUEST_TOKEN = 'guest-no-password-required'
+
+// GET /api/auth/app — tells frontend if login is required
+app.get('/api/auth/app', (_req, res) => {
+  res.json({ required: Boolean(APP_PASSWORD) })
+})
+
+// POST /api/auth/app/login — validates credentials, returns session token
+app.post('/api/auth/app/login', (req, res) => {
+  if (!APP_PASSWORD) return res.json({ token: 'no-auth', noAuthRequired: true })
+  const { username, password } = req.body || {}
+  if (username !== APP_USERNAME || password !== APP_PASSWORD) {
+    return res.status(401).json({ error: 'Incorrect username or password' })
+  }
+  const token = crypto.randomBytes(32).toString('hex')
+  validAppTokens.add(token)
+  res.json({ token })
+})
+
+// POST /api/auth/app/validate — checks if a stored token is still valid
+app.post('/api/auth/app/validate', (req, res) => {
+  if (!APP_PASSWORD) return res.json({ valid: true, noAuthRequired: true })
+  const token = req.headers['x-app-token']
+  res.json({ valid: Boolean(token && validAppTokens.has(token)) })
+})
 
 function requireTutorAuth(req, res, next) {
   if (!TUTOR_PASSWORD) return next()
