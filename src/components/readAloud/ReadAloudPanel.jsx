@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import INITIAL_READALOUD from "../../data/readAloudQuestions";
 import { useReadAloudStorage } from "../../hooks/useReadAloudStorage";
+import useScoreTracker from "../../hooks/useScoreTracker";
 import ReadAloudPractice from "./ReadAloudPractice";
 
 const PAGE_SIZE = 8;
 
 export default function ReadAloudPanel() {
   const { bookmarks, toggleBookmark, history, addHistory, progress, markCompleted, setLast } = useReadAloudStorage();
+  const { addPracticeScore } = useScoreTracker();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState({ difficulty: "All", bookmarked: false, practiced: false });
@@ -88,7 +90,7 @@ export default function ReadAloudPanel() {
 
       {active && (
         <div style={{ marginTop: 18 }}>
-          <ReadAloudPractice question={active} onClose={() => setActive(null)} onComplete={(rec) => { addHistory({ id: active.id, recording: rec }); markCompleted(active.id); }} />
+          <ReadAloudPractice question={active} onClose={() => setActive(null)} onComplete={(rec) => { addHistory({ id: active.id, recording: rec }); markCompleted(active.id); if (rec?.score?.overall) addPracticeScore('S', rec.score.overall); }} />
         </div>
       )}
     </div>

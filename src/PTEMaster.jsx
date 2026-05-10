@@ -8,17 +8,16 @@
 // - The UI is large (many small sections). If you want to improve readability,
 //   consider splitting the file into smaller components (e.g., ScorerPanel, TrackerPanel).
 import { useState } from "react";
+import useScoreTracker from "./hooks/useScoreTracker";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import EssayFeedbackPanel from "./components/EssayFeedbackPanel";
 import PriorityIntelligencePanel from "./components/PriorityIntelligencePanel";
 import {
   AIQuestionBank,
   AnalyticsDashboard,
-  DescribeImageTrainer,
   GamificationPanel,
   MockTestSystem,
   ProductionReadinessPanel,
-  RepeatSentencePractice,
   StudyPlanner,
 } from "./components/PTEAdvancedPanels";
 import ReadAloudPanel from "./components/readAloud/ReadAloudPanel";
@@ -26,6 +25,20 @@ import ReadingPanel from "./components/practice/ReadingPanel";
 import WritingPanel from "./components/practice/WritingPanel";
 import ListeningPanel from "./components/practice/ListeningPanel";
 import PriorityTaskDetail from "./components/PriorityTaskDetail";
+// Speaking panels
+import RepeatSentencePanel from "./components/speaking/RepeatSentencePanel";
+import DescribeImagePanel from "./components/speaking/DescribeImagePanel";
+import RetellLecturePanel from "./components/speaking/RetellLecturePanel";
+// Reading panels
+import RWFillBlanksPanel from "./components/reading/RWFillBlanksPanel";
+import ReorderPanel from "./components/reading/ReorderPanel";
+import DropdownFillBlanksPanel from "./components/reading/DropdownFillBlanksPanel";
+// Writing panels
+import SummarizeWrittenPanel from "./components/writing/SummarizeWrittenPanel";
+// Listening panels
+import WriteDictationPanel from "./components/listening/WriteDictationPanel";
+import SummarizeSpeechPanel from "./components/listening/SummarizeSpeechPanel";
+import TypeInFillBlanksPanel from "./components/listening/TypeInFillBlanksPanel";
 
 // Simple constants used for display colours and labels.
 const ZONE_COLOR = { S: "#38BDF8", W: "#A78BFA", R: "#34D399", L: "#FBBF24" };
@@ -113,11 +126,7 @@ export default function PTEMaster() {
   const [scoring, setScoring] = useState(false);
   const [scoreResult, setScoreResult] = useState(null);
   const [scoreError, setScoreError] = useState("");
-  const [sessions, setSessions] = useState([
-    { date: "2026-05-01", S: 68, W: 65, R: 70, L: 66 },
-    { date: "2026-05-04", S: 72, W: 69, R: 74, L: 70 },
-    { date: "2026-05-07", S: 88, W: 85, R: 79, L: 83 },
-  ]);
+  const { sessions, setSessions } = useScoreTracker();
   const [form, setForm] = useState({ date: new Date().toISOString().slice(0, 10), S: "", W: "", R: "", L: "" });
   const [selectedTask, setSelectedTask] = useState(null);
   const [customTips, setCustomTips] = useState(() => {
@@ -136,9 +145,17 @@ export default function PTEMaster() {
   const [qAnswers, setQAnswers] = useState({});
   const [qRevealed, setQRevealed] = useState({});
   const [qSelected, setQSelected] = useState({});
+  // Zone sub-tabs
+  const [speakingTab, setSpeakingTab] = useState("read_aloud");
+  const [writingTab, setWritingTab]   = useState("essay");
+  const [readingTab, setReadingTab]   = useState("rw_fitb");
+  const [listeningTab, setListeningTab] = useState("dictation");
 
   // Derive overall score for each saved session and get the latest session.
-  const sessionsWithOverall = sessions.map(s => ({ ...s, Overall: Math.round((s.S + s.W + s.R + s.L) / 4) }));
+  const sessionsWithOverall = sessions.map(s => {
+    const vals = [s.S, s.W, s.R, s.L].filter(v => v != null);
+    return { ...s, Overall: vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null };
+  });
   const latest = sessionsWithOverall[sessionsWithOverall.length - 1];
 
   // scoreResponse: send the user's pasted text to the backend proxy /api/score.
@@ -242,7 +259,7 @@ export default function PTEMaster() {
           <div style={{ color: "#475569", fontSize: 11, marginTop: 2 }}>AI Scorer · Score Tracker · Question Bank</div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {latest && ["S","W","R","L"].map(z => (
+          {latest && ["S","W","R","L"].map(z => latest[z] != null && (
             <div key={z} style={{ textAlign: "center", padding: "4px 10px", background: "#0F1929", borderRadius: 8, border: `1px solid ${ZONE_COLOR[z]}30` }}>
               <div style={{ fontSize: 9, color: ZONE_COLOR[z], fontWeight: 700, textTransform: "uppercase" }}>{ZONE_NAME[z].slice(0,2)}</div>
               <div style={{ fontSize: 16, fontWeight: 700, color: scoreColor(latest[z]) }}>{latest[z]}</div>
@@ -396,6 +413,15 @@ export default function PTEMaster() {
             {scorerTask === "write_essay" && userText.trim() && (
               <div style={{ fontSize: 12, marginTop: 6, color: wc(userText) < 200 ? "#F87171" : wc(userText) > 300 ? "#FBBF24" : "#34D399" }}>
                 Word count: {wc(userText)} / 200–300 {wc(userText) < 200 ? "⚠ too short" : wc(userText) > 300 ? "⚠ too long" : "✓ good length"}
+              </div>
+            )}
+            {scorerTask === "summarize_written" && userText.trim() && (
+              <div style={{ fontSize: 12, marginTop: 6, color: wc(userText) < 5 ? "#F87171" : wc(userText) > 75 ? "#FBBF24" : "#34D399" }}>
+                Word count: {wc(userText)} / 5–75 {wc(userText) < 5 ? "⚠ too short" : wc(userText) > 75 ? "⚠ too long" : "✓ good length"}
+                {" · "}
+                {(userText.trim().match(/[.!?]+(?:\s|$)/g) || []).length > 1
+                  ? <span style={{ color: "#F87171" }}>⚠ multiple sentences detected — must be 1</span>
+                  : <span style={{ color: "#34D399" }}>1 sentence ✓</span>}
               </div>
             )}
 
@@ -554,9 +580,9 @@ export default function PTEMaster() {
                         <tr key={i} style={{ borderBottom: "1px solid #0F172A" }}>
                           <td style={{ padding: "10px 20px", color: "#64748B", fontSize: 12 }}>{s.date}</td>
                           {['S','W','R','L'].map(z => (
-                            <td key={z} style={{ textAlign: "center", padding: "10px 16px", fontWeight: 700, color: scoreColor(s[z]) }}>{s[z]}</td>
+                            <td key={z} style={{ textAlign: "center", padding: "10px 16px", fontWeight: 700, color: s[z] != null ? scoreColor(s[z]) : '#475569' }}>{s[z] ?? '–'}</td>
                           ))}
-                          <td style={{ textAlign: "center", padding: "10px 16px", fontWeight: 800, color: scoreColor(s.Overall) }}>{s.Overall}</td>
+                          <td style={{ textAlign: "center", padding: "10px 16px", fontWeight: 800, color: s.Overall != null ? scoreColor(s.Overall) : '#475569' }}>{s.Overall ?? '–'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -678,26 +704,112 @@ export default function PTEMaster() {
         )}
 
         {tab === "mock" && <MockTestSystem />}
+
+        {/* ───── SPEAKING ZONE ───── */}
         {tab === "speaking" && (
-          <div style={{ display: "grid", gap: 24 }}>
-            <ReadAloudPanel />
-            <RepeatSentencePractice />
-            <DescribeImageTrainer />
-          </div>
-        )}
-        {tab === "reading" && (
           <div>
-            <ReadingPanel />
+            <div style={{ display: "flex", gap: 6, marginBottom: 20, background: "#0A1222", borderRadius: 10, padding: 4 }}>
+              {[
+                { id: "read_aloud",  label: "📖 Read Aloud",       weight: "15%" },
+                { id: "repeat",      label: "🔁 Repeat Sentence",  weight: "13%" },
+                { id: "describe",    label: "🖼 Describe Image",   weight: "10%" },
+                { id: "retell",      label: "🎧 Re-tell Lecture",  weight: "8%"  },
+              ].map(t => (
+                <button key={t.id} onClick={() => setSpeakingTab(t.id)} style={{
+                  flex: 1, padding: "8px 4px", border: "none", borderRadius: 8, cursor: "pointer",
+                  fontSize: 12, fontWeight: 700, fontFamily: "inherit", transition: "all .15s",
+                  background: speakingTab === t.id ? "#38BDF820" : "transparent",
+                  color: speakingTab === t.id ? "#38BDF8" : "#475569",
+                  borderBottom: speakingTab === t.id ? "2px solid #38BDF8" : "2px solid transparent",
+                }}>
+                  {t.label}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#64748B" }}>{t.weight}</span>
+                </button>
+              ))}
+            </div>
+            {speakingTab === "read_aloud" && <ReadAloudPanel />}
+            {speakingTab === "repeat"     && <RepeatSentencePanel />}
+            {speakingTab === "describe"   && <DescribeImagePanel />}
+            {speakingTab === "retell"     && <RetellLecturePanel />}
           </div>
         )}
+
+        {/* ───── WRITING ZONE ───── */}
         {tab === "writing" && (
           <div>
-            <WritingPanel />
+            <div style={{ display: "flex", gap: 6, marginBottom: 20, background: "#0A1222", borderRadius: 10, padding: 4 }}>
+              {[
+                { id: "essay",      label: "✍️ Write Essay",           weight: "24%" },
+                { id: "summarize",  label: "📝 Summarize Written Text", weight: "15%" },
+              ].map(t => (
+                <button key={t.id} onClick={() => setWritingTab(t.id)} style={{
+                  flex: 1, padding: "8px 4px", border: "none", borderRadius: 8, cursor: "pointer",
+                  fontSize: 12, fontWeight: 700, fontFamily: "inherit", transition: "all .15s",
+                  background: writingTab === t.id ? "#A78BFA20" : "transparent",
+                  color: writingTab === t.id ? "#A78BFA" : "#475569",
+                  borderBottom: writingTab === t.id ? "2px solid #A78BFA" : "2px solid transparent",
+                }}>
+                  {t.label}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#64748B" }}>{t.weight}</span>
+                </button>
+              ))}
+            </div>
+            {writingTab === "essay"     && <WritingPanel />}
+            {writingTab === "summarize" && <SummarizeWrittenPanel />}
           </div>
         )}
+
+        {/* ───── READING ZONE ───── */}
+        {tab === "reading" && (
+          <div>
+            <div style={{ display: "flex", gap: 6, marginBottom: 20, background: "#0A1222", borderRadius: 10, padding: 4 }}>
+              {[
+                { id: "rw_fitb",   label: "📖 R&W Fill Blanks",     weight: "18%" },
+                { id: "reorder",   label: "🔀 Reorder Paragraph",   weight: "13%" },
+                { id: "dropdown",  label: "▼ Fill Blanks Dropdown", weight: "10%" },
+                { id: "general",   label: "📚 Reading Practice",    weight: "" },
+              ].map(t => (
+                <button key={t.id} onClick={() => setReadingTab(t.id)} style={{
+                  flex: 1, padding: "8px 4px", border: "none", borderRadius: 8, cursor: "pointer",
+                  fontSize: 12, fontWeight: 700, fontFamily: "inherit", transition: "all .15s",
+                  background: readingTab === t.id ? "#34D39920" : "transparent",
+                  color: readingTab === t.id ? "#34D399" : "#475569",
+                  borderBottom: readingTab === t.id ? "2px solid #34D399" : "2px solid transparent",
+                }}>
+                  {t.label}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#64748B" }}>{t.weight}</span>
+                </button>
+              ))}
+            </div>
+            {readingTab === "rw_fitb"  && <RWFillBlanksPanel />}
+            {readingTab === "reorder"  && <ReorderPanel />}
+            {readingTab === "dropdown" && <DropdownFillBlanksPanel />}
+            {readingTab === "general"  && <ReadingPanel />}
+          </div>
+        )}
+
+        {/* ───── LISTENING ZONE ───── */}
         {tab === "listening" && (
           <div>
-            <ListeningPanel />
+            <div style={{ display: "flex", gap: 6, marginBottom: 20, background: "#0A1222", borderRadius: 10, padding: 4 }}>
+              {[
+                { id: "dictation",  label: "✍️ Write Dictation",     weight: "22%" },
+                { id: "summarize",  label: "🎧 Summarize Spoken",    weight: "14%" },
+                { id: "typein",     label: "⌨️ Fill Blanks (Type)",   weight: "12%" },
+                { id: "general",    label: "📻 Listening Practice",  weight: "" },
+              ].map(t => (
+                <button key={t.id} onClick={() => setListeningTab(t.id)} style={{
+                  flex: 1, padding: "8px 4px", border: "none", borderRadius: 8, cursor: "pointer",
+                  fontSize: 12, fontWeight: 700, fontFamily: "inherit", transition: "all .15s",
+                  background: listeningTab === t.id ? "#FBBF2420" : "transparent",
+                  color: listeningTab === t.id ? "#FBBF24" : "#475569",
+                  borderBottom: listeningTab === t.id ? "2px solid #FBBF24" : "2px solid transparent",
+                }}>
+                  {t.label}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#64748B" }}>{t.weight}</span>
+                </button>
+              ))}
+            </div>
+            {listeningTab === "dictation" && <WriteDictationPanel />}
+            {listeningTab === "summarize" && <SummarizeSpeechPanel />}
+            {listeningTab === "typein"    && <TypeInFillBlanksPanel />}
+            {listeningTab === "general"   && <ListeningPanel />}
           </div>
         )}
         {tab === "planner" && <StudyPlanner />}

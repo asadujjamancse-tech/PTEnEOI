@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { generateMockScore } from "../../utils/readAloudScorer";
+import { callClaudeScore } from "../../utils/claudeScorer";
 import { saveRecording } from "../../utils/idb";
 
 export default function ReadAloudPractice({ question, onClose, onComplete }) {
@@ -15,6 +16,8 @@ export default function ReadAloudPractice({ question, onClose, onComplete }) {
   const analyserRef = useRef(null);
   const animFrameRef = useRef(null);
   const audioCtxRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const transcriptRef = useRef("");
 
   useEffect(() => {
     let t;
@@ -33,8 +36,9 @@ export default function ReadAloudPractice({ question, onClose, onComplete }) {
 
   useEffect(() => {
     if (prep === 0 && !recording) {
-      // auto-start recording after prep
+      startRecording();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prep]);
 
   const drawWaveform = () => {
@@ -90,6 +94,21 @@ export default function ReadAloudPractice({ question, onClose, onComplete }) {
       mr.start();
       setMediaRecorder(mr);
       setRecording(true);
+
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SR) {
+        transcriptRef.current = "";
+        const rec = new SR();
+        rec.continuous = true;
+        rec.interimResults = false;
+        rec.onresult = (e) => {
+          for (let i = e.resultIndex; i < e.results.length; i++) {
+            if (e.results[i].isFinal) transcriptRef.current += e.results[i][0].transcript + " ";
+          }
+        };
+        rec.start();
+        recognitionRef.current = rec;
+      }
     } catch (err) {
       console.error('mic error', err);
       alert('Unable to access microphone.');
@@ -111,6 +130,10 @@ export default function ReadAloudPractice({ question, onClose, onComplete }) {
       audioCtxRef.current = null;
     }
     analyserRef.current = null;
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch {}
+      recognitionRef.current = null;
+    }
     // Draw flat line to indicate stopped
     const canvas = canvasRef.current;
     if (canvas) {
@@ -125,11 +148,16 @@ export default function ReadAloudPractice({ question, onClose, onComplete }) {
     }
   };
 
-  const submit = () => {
-    // Mock scoring for now
-    const mock = generateMockScore();
-    setScore(mock);
-    if (onComplete) onComplete({ audioUrl, score: mock, recordingId: audioUrl });
+  const submit = async () => {
+    const transcript = transcriptRef.current.trim();
+    let result;
+    try {
+      result = await callClaudeScore({ skill: 'read_aloud', question: question.text, answer: transcript || question.text });
+    } catch {
+      result = generateMockScore();
+    }
+    setScore(result);
+    if (onComplete) onComplete({ audioUrl, score: result, recordingId: audioUrl });
   };
 
   // Persist blobs to IndexedDB on mediaRecorder stop via effect when audioUrl changes
@@ -190,7 +218,7 @@ export default function ReadAloudPractice({ question, onClose, onComplete }) {
       {audioUrl && (
         <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
           <audio controls src={audioUrl} />
-          <button className="qtab" onClick={() => { submit(); }}>Submit (AI Scorer placeholder)</button>
+          <button className="btn-primary" style={{ padding: '6px 16px' }} onClick={submit}>Submit for AI Score</button>
         </div>
       )}
 

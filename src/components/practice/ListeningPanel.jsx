@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
 import LISTENING_QS from "../../data/listeningQuestions";
 import usePracticeStorage from "../../hooks/usePracticeStorage";
+import useScoreTracker from "../../hooks/useScoreTracker";
 import ListeningPractice from "./ListeningPractice";
 
 const PAGE_SIZE = 8;
 
 export default function ListeningPanel() {
   const { bookmarks, toggleBookmark, history, addHistory, progress, markCompleted, setLast } = usePracticeStorage('listening');
+  const { addPracticeScore } = useScoreTracker();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState({ difficulty: "All", bookmarked: false, practiced: false });
@@ -61,7 +63,7 @@ export default function ListeningPanel() {
         </div>
       </div>
 
-      {active && <div style={{ marginTop: 12 }}><ListeningPractice question={active} onClose={() => setActive(null)} onComplete={(res) => { addHistory({ id: active.id, result: res }); markCompleted(active.id); }} /></div>}
+      {active && <div style={{ marginTop: 12 }}><ListeningPractice question={active} onClose={() => setActive(null)} onComplete={(res) => { addHistory({ id: active.id, result: res }); markCompleted(active.id); if (res?.score?.overall) addPracticeScore('L', res.score.overall); }} /></div>}
     </div>
   );
 }

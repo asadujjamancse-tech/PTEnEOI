@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
 import WRITING_QS from "../../data/writingQuestions";
 import usePracticeStorage from "../../hooks/usePracticeStorage";
+import useScoreTracker from "../../hooks/useScoreTracker";
 import WritingPractice from "./WritingPractice";
 
 const PAGE_SIZE = 8;
 
 export default function WritingPanel() {
   const { bookmarks, toggleBookmark, history, addHistory, progress, markCompleted, setLast } = usePracticeStorage('writing');
+  const { addPracticeScore } = useScoreTracker();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState({ difficulty: "All", bookmarked: false, practiced: false });
@@ -61,7 +63,7 @@ export default function WritingPanel() {
         </div>
       </div>
 
-      {active && <div style={{ marginTop: 12 }}><WritingPractice question={active} onClose={() => setActive(null)} onComplete={(res) => { addHistory({ id: active.id, result: res }); markCompleted(active.id); }} /></div>}
+      {active && <div style={{ marginTop: 12 }}><WritingPractice question={active} onClose={() => setActive(null)} onComplete={(res) => { addHistory({ id: active.id, result: res }); markCompleted(active.id); if (res?.score?.overall) addPracticeScore('W', res.score.overall); }} /></div>}
     </div>
   );
 }

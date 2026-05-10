@@ -6,9 +6,25 @@ export default function ListeningPractice({ question, onClose, onComplete }) {
   const [answer, setAnswer] = useState("");
   const [scored, setScored] = useState(null);
   const [scoring, setScoring] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [played, setPlayed] = useState(false);
 
-  // For demo purposes, audio is not a real file. In a real system we'd attach an audio URL.
-  const fakeAudioUrl = null;
+  const playAudio = () => {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance(question.text);
+    utt.rate = 0.88;
+    utt.pitch = 1;
+    utt.onstart = () => setPlaying(true);
+    utt.onend = () => { setPlaying(false); setPlayed(true); };
+    utt.onerror = () => setPlaying(false);
+    window.speechSynthesis.speak(utt);
+  };
+
+  const stopAudio = () => {
+    window.speechSynthesis.cancel();
+    setPlaying(false);
+  };
 
   const submit = async () => {
     if (scoring) return;
@@ -30,9 +46,22 @@ export default function ListeningPractice({ question, onClose, onComplete }) {
         <div style={{ fontWeight: 700 }}>{question.title}</div>
         <div style={{ color: '#94A3B8' }}>{question.difficulty}</div>
       </div>
-      <div style={{ marginTop: 10, background: '#080E1A', padding: 12, borderRadius: 8 }}>{question.text}</div>
-      <div style={{ marginTop: 10 }}>
-        <div style={{ height: 56, background: '#071026', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B' }}>Audio player placeholder</div>
+      <div style={{ marginTop: 10, background: '#080E1A', padding: 12, borderRadius: 8, color: '#64748B', fontSize: 13 }}>
+        Listen to the audio, then answer below. You may play once.
+      </div>
+      <div style={{ marginTop: 10, height: 56, background: '#071026', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px' }}>
+        {!playing ? (
+          <button className="btn-primary" style={{ padding: '6px 18px', fontSize: 13 }} onClick={playAudio}>
+            {played ? '↩ Replay' : '▶ Play Audio'}
+          </button>
+        ) : (
+          <button className="btn-primary" style={{ padding: '6px 18px', fontSize: 13, background: '#475569' }} onClick={stopAudio}>
+            ■ Stop
+          </button>
+        )}
+        <div style={{ color: playing ? '#38BDF8' : played ? '#34D399' : '#475569', fontSize: 12 }}>
+          {playing ? 'Playing…' : played ? 'Done — answer below' : 'Press Play to begin'}
+        </div>
       </div>
       <textarea className="input-field" rows={4} placeholder="Type your answer to the listening prompt..." value={answer} onChange={e => setAnswer(e.target.value)} style={{ marginTop: 10 }} />
       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>

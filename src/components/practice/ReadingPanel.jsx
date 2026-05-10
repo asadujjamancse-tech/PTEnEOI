@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import READING_QS from "../../data/readingQuestions";
 import usePracticeStorage from "../../hooks/usePracticeStorage";
+import useScoreTracker from "../../hooks/useScoreTracker";
 import ReadingPractice from "./ReadingPractice";
 
 const PAGE_SIZE = 8;
 
 export default function ReadingPanel() {
   const { bookmarks, toggleBookmark, history, addHistory, progress, markCompleted, setLast } = usePracticeStorage('reading');
+  const { addPracticeScore } = useScoreTracker();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState({ difficulty: "All", bookmarked: false, practiced: false });
@@ -62,7 +64,7 @@ export default function ReadingPanel() {
         </div>
       </div>
 
-      {active && <div style={{ marginTop: 12 }}><ReadingPractice question={active} onClose={() => setActive(null)} onComplete={(res) => { addHistory({ id: active.id, result: res }); markCompleted(active.id); }} /></div>}
+      {active && <div style={{ marginTop: 12 }}><ReadingPractice question={active} onClose={() => setActive(null)} onComplete={(res) => { addHistory({ id: active.id, result: res }); markCompleted(active.id); if (res?.score?.overall) addPracticeScore('R', res.score.overall); }} /></div>}
     </div>
   );
 }
