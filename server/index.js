@@ -21,6 +21,57 @@ if (!API_KEY) console.warn('Warning: ANTHROPIC_API_KEY not set in environment; s
 // A small example proxy route scrapes a public website and returns structured rows.
 const INVITATION_ROUNDS_URL = 'https://immi.homeaffairs.gov.au/visas/working-in-australia/skillselect/invitation-rounds'
 
+// Simple in-memory cache for metadata to avoid repeated fetches
+const metaCache = {} // { key: { data, ts } }
+const META_TTL = 1000 * 60 * 60 * 12 // 12 hours
+
+const VISA_PAGES = {
+  '189': 'https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/skilled-independent-189',
+  '190': 'https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/skilled-nominated-190',
+  '491': 'https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/skilled-work-regional-provisional-491',
+}
+
+// GET /api/visa-meta?id=189
+// Returns best-effort metadata for a visa page: { lastUpdated, summary, url }
+app.get('/api/visa-meta', async (req, res) => {
+  try {
+    const id = String(req.query.id || '');
+    const url = VISA_PAGES[id];
+    if (!url) return res.status(400).json({ error: 'unknown id' });
+
+    const cacheKey = id;
+    const cached = metaCache[cacheKey];
+    if (cached && (Date.now() - cached.ts) < META_TTL) {
+      return res.json({ id, url, ...cached.data, cached: true });
+    }
+
+    const r = await fetch(url);
+    if (!r.ok) return res.status(502).json({ error: 'fetch failed' });
+    const last = r.headers.get('last-modified') || r.headers.get('date') || null;
+    const text = await r.text();
+    const decodeHtml = (value) => value
+      .replace(/&quot;/g, '"')
+      .replace(/&#58;/g, ':')
+      .replace(/&amp;/g, '&')
+      .replace(/&#39;/g, "'")
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+    const docMatch = text.match(/<meta[^>]+name=["']description["'][^>]*content=["']([^"']+)["'][^>]*>/i)
+    const metaDesc = docMatch ? decodeHtml(docMatch[1]) : null;
+    // fallback: first paragraph
+    const pMatch = text.match(/<p[^>]*>([^<]{30,}?)<\/p>/i);
+    const firstPara = pMatch ? decodeHtml(pMatch[1].replace(/<[^>]*>/g, '').trim()) : null;
+    const summary = (metaDesc || firstPara || '').slice(0, 400);
+
+    const data = { lastUpdated: last, summary };
+    metaCache[cacheKey] = { data, ts: Date.now() };
+    res.json({ id, url, ...data, cached: false });
+  } catch (err) {
+    console.error('visa-meta error', err);
+    res.status(500).json({ error: 'visa-meta error', details: String(err) });
+  }
+});
+
 // POST /api/score
 // This route acts as a safe server-side proxy for the Anthropic API.
 // The frontend sends the scoring request body to this endpoint and the server

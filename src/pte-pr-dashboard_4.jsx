@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, RadialBarChart, RadialBar } from "recharts";
+import { useRef } from "react";
 
 // ─── DATA ───────────────────────────────────────────────────────────────────
 
@@ -238,11 +239,95 @@ export default function App() {
   const [pteView, setPteView] = useState("both");
 
   // PR state
-  const [pts, setPts] = useState(DEFAULT_VALUES);
+  const [pts, setPts] = useState(() => {
+    try {
+      return {
+        ...DEFAULT_VALUES,
+        ...JSON.parse(window.localStorage.getItem('pts') || '{}'),
+      };
+    } catch (e) {
+      return DEFAULT_VALUES;
+    }
+  });
   const [occupations, setOccupations] = useState(FALLBACK_OCCUPATIONS);
   const [occupationQuery, setOccupationQuery] = useState("");
   const [selectedOccupationCode, setSelectedOccupationCode] = useState("333212");
   const [occupationLoadNote, setOccupationLoadNote] = useState("Loading latest official occupation list...");
+  // User-editable EOI state (make the dashboard's `State` field changeable)
+  const [eoiState, setEoiState] = useState(() => {
+    try {
+      return window?.localStorage?.getItem?.('eoiState') || "SA — South Australia";
+    } catch (e) {
+      return "SA — South Australia";
+    }
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem('eoiState', eoiState); } catch (e) { }
+  }, [eoiState]);
+  useEffect(() => {
+    try { window.localStorage.setItem('pts', JSON.stringify(pts)); } catch (e) { }
+  }, [pts]);
+  // Optional manual overrides and notes for visa point displays (persisted)
+  const [visaOverrides, setVisaOverrides] = useState(() => {
+    try { return JSON.parse(window.localStorage.getItem('visaOverrides') || '{}'); } catch (e) { return {}; }
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem('visaOverrides', JSON.stringify(visaOverrides)); } catch (e) { }
+  }, [visaOverrides]);
+
+  // Fetch visa metadata via server proxy to avoid CORS
+  useEffect(() => {
+    const ids = ['189','190','491'];
+    ids.forEach(async (id) => {
+      try {
+        const r = await fetch(`/api/visa-meta?id=${id}`);
+        if (!r.ok) return;
+        const j = await r.json();
+        setVisaMeta(prev => ({ ...prev, [id]: j }));
+      } catch (e) {
+        // ignore
+      }
+    });
+  }, []);
+
+  // Apply overrides to totals if present
+  const overrideValue = (id, base) => {
+    const o = visaOverrides[id];
+    return o && typeof o.value === 'number' ? o.value : base;
+  };
+  const [editingVisa, setEditingVisa] = useState(null);
+  const [tempOverride, setTempOverride] = useState("");
+  const [tempNote, setTempNote] = useState("");
+  // Metadata fetched from DHA pages (last-updated, summary) — best-effort (may be CORS-limited)
+  const [visaMeta, setVisaMeta] = useState({});
+
+  useEffect(() => {
+    // list of official pages we want to try fetching
+    const pages = {
+      "189": "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/skilled-independent-189",
+      "190": "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/skilled-nominated-190",
+      "491": "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/skilled-work-regional-provisional-491",
+    };
+
+    Object.entries(pages).forEach(async ([id, url]) => {
+      try {
+        const res = await fetch(url, { method: 'GET' });
+        if (!res.ok) return;
+        // try header first
+        const last = res.headers.get('last-modified') || res.headers.get('date');
+        const text = await res.text();
+        const doc = new DOMParser().parseFromString(text, 'text/html');
+        // attempt various fallbacks for a summary
+        const metaDesc = doc.querySelector('meta[name="description"]')?.getAttribute('content') || doc.querySelector('meta[property="og:description"]')?.getAttribute('content');
+        const firstPara = doc.querySelector('p')?.textContent?.trim();
+        const timeEl = doc.querySelector('time')?.textContent?.trim();
+        const summary = (metaDesc || firstPara || '').slice(0, 200);
+        setVisaMeta(prev => ({ ...prev, [id]: { lastUpdated: last || timeEl || null, summary: summary || null } }));
+      } catch (e) {
+        // ignore; CORS will often block this in-browser
+      }
+    });
+  }, []);
   const set = (k, v) => setPts(p => ({ ...p, [k]: v }));
 
   useEffect(() => {
@@ -370,9 +455,15 @@ export default function App() {
   }, [occupations, selectedOccupationCode]);
 
   const total = useMemo(() => Object.values(pts).reduce((a, b) => a + b, 0), [pts]);
-  const baseTotal = useMemo(() => Object.entries(pts).reduce((a, [k, v]) => k === "nomination" ? a : a + v, 0), [pts]);
-  const with190 = baseTotal + 5;
-  const with491 = baseTotal + 15;
+  // computed (raw) totals based on current pts selections
+  const computedBaseTotal = useMemo(() => Object.entries(pts).reduce((a, [k, v]) => k === "nomination" ? a : a + v, 0), [pts]);
+  const computedWith190 = computedBaseTotal + 5;
+  const computedWith491 = computedBaseTotal + 15;
+
+  // Apply any manual visa overrides (if present) so the dashboard reflects user-entered totals
+  const baseTotal = useMemo(() => overrideValue('189', computedBaseTotal), [visaOverrides, computedBaseTotal]);
+  const with190 = useMemo(() => overrideValue('190', computedWith190), [visaOverrides, computedWith190]);
+  const with491 = useMemo(() => overrideValue('491', computedWith491), [visaOverrides, computedWith491]);
 
   const englishUpgrade = pts.english === 10 ? 10 : pts.english === 0 ? 20 : 0;
   const projectedWithSuperiorEnglish = total + englishUpgrade;
@@ -393,6 +484,25 @@ export default function App() {
     { id: "pte", icon: "📊", label: "PTE Score Weights" },
   ];
 
+  // List of Australian states/territories for the EOI selector
+  const AU_STATES = [
+    "NSW — New South Wales",
+    "VIC — Victoria",
+    "QLD — Queensland",
+    "WA — Western Australia",
+    "SA — South Australia",
+    "TAS — Tasmania",
+    "ACT — Australian Capital Territory",
+    "NT — Northern Territory",
+  ];
+
+  const EOI_ROWS = [
+    { label: "Occupation", val: `${selectedOccupation.code} ${selectedOccupation.title}` },
+    { label: "State", val: eoiState, isState: true },
+    { label: "EOIs in pool", val: "6 (+20% ↑)" },
+    { label: "Pool date", val: "Apr 2026" },
+  ];
+
   return (
     <div style={{ minHeight: "100vh", background: "#070D1A", color: "#fff", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <style>{`
@@ -410,8 +520,44 @@ export default function App() {
         .field-label { font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; display: flex; align-items: center; gap: 5px; }
         .field-hint { font-size: 10px; color: #334155; margin-bottom: 6px; line-height: 1.4; }
         .pts-chip { display: inline-block; border-radius: 6px; padding: 1px 8px; font-size: 12px; font-weight: 800; }
-        .visa-card { border-radius: 14px; padding: 16px 18px; border: 1px solid; }
+  .visa-card { border-radius: 14px; padding: 16px 18px; border: 1px solid; }
+  .visa-detail { font-size: 11px; color: #94A3B8; margin-top: 6px; line-height: 1.3; }
+  .visa-edit-btn { background: transparent; border: 1px solid #334155; color: #38BDF8; padding: 6px 8px; border-radius: 8px; cursor: pointer; font-size: 12px; }
+  .visa-save { background: #34D399; border: none; color: #042014; padding: 6px 8px; border-radius: 8px; cursor: pointer; font-weight: 700; }
+  .visa-cancel { background: #1E293B; border: 1px solid #334155; color: #94A3B8; padding: 6px 8px; border-radius: 8px; cursor: pointer; }
+  .visa-input { background: #07101a; border: 1px solid #334155; color: #fff; padding: 6px 8px; border-radius: 6px; width: 100%; }
+  .visa-link { color: #38BDF8; font-size: 12px; text-decoration: none; margin-left: 8px; border: 1px solid transparent; padding: 4px 6px; border-radius: 6px; }
+  .visa-link:hover { text-decoration: underline; }
+  /* Styled tooltip */
+  .visa-tooltip { position: relative; }
+  .visa-tooltip .tip { display: none; position: absolute; right: 0; top: 120%; width: 320px; background: #07101a; border: 1px solid #334155; padding: 10px; border-radius: 8px; color: #cbd5e1; font-size: 12px; z-index: 60; box-shadow: 0 6px 20px rgba(2,6,23,0.6); }
+  .visa-tooltip:hover .tip, .visa-tooltip:focus-within .tip { display: block; }
+  .visa-tooltip .tip h4 { margin: 0 0 6px 0; font-size: 13px; color: #fff; }
+  .visa-tooltip .tip p { margin: 0 0 6px 0; font-size: 12px; color: #94a3b8; }
+  /* Compact horizontal visa row (used above nominated occupation) */
+  .visa-mini-row { display: flex; gap: 8px; margin-bottom: 12px; }
+  .visa-mini { background: #0A1222; border-radius: 12px; padding: 10px 12px; border: 1px solid #1E293B; min-width: 110px; text-align: center; }
         .info-note { background: #0C1B35; border: 1px solid #1D4ED8; border-radius: 10px; padding: 10px 14px; font-size: 11px; color: #60A5FA; line-height: 1.6; }
+        /* Responsive layout for score gauge + visa cards */
+  .score-visa-row { display: flex; gap: 12px; align-items: flex-start; }
+  /* Left column: visa cards horizontally laid out on desktop */
+  .visa-cards { flex: 0 0 320px; display: flex; flex-direction: row; gap: 8px; align-items: flex-start; }
+  .visa-cards .visa-card { flex: 1 1 0; }
+
+        /* Tablet: two columns for visa cards and slightly narrower left column */
+        @media (max-width: 1024px) and (min-width: 721px) {
+          .score-left { flex: 0 0 280px; }
+          .visa-cards { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        /* Mobile: stack vertically and make selects full width */
+        @media (max-width: 720px) {
+          .score-visa-row { flex-direction: column; }
+          .score-left { flex: none; width: 100%; }
+          .visa-cards { grid-template-columns: 1fr; }
+          .visa-card { width: 100%; }
+          select { width: 100%; }
+        }
       `}</style>
 
       {/* ── Top header ── */}
@@ -469,6 +615,66 @@ export default function App() {
                 <div style={{ fontSize: 12, color: "#475569" }}>Pre-filled from your Settledin profile · Adjust any field to recalculate</div>
               </div>
 
+              {/* Visa cards moved above nominated occupation (moved from right column) */}
+              <div className="visa-cards" style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                {[
+                  { id: "189", label: "189", type: "Independent", total: baseTotal, threshold: 85, color: "#38BDF8", note: "Permanent · Anywhere in AU", href: "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/skilled-independent-189" },
+                  { id: "190", label: "190", type: "Nominated",   total: with190,   threshold: 75, color: "#A78BFA", note: "+5 pts · State commitment 2yr", href: "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/skilled-nominated-190" },
+                  { id: "491", label: "491", type: "Regional",    total: with491,   threshold: 65, color: "#34D399", note: "+15 pts · Regional 3yr → PR 191", href: "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/skilled-work-regional-provisional-491" },
+                ].map(v => {
+                  const displayVal = visaOverrides[v.id]?.value ?? v.total;
+                  const overrideNote = visaOverrides[v.id]?.note || "";
+                  const eligible = displayVal >= 65;
+                  const competitive = displayVal >= v.threshold;
+                    return (
+                    <a key={v.id} href={v.href || '#'} target="_blank" rel="noreferrer" title={(visaMeta[v.id]?.lastUpdated ? `Updated: ${visaMeta[v.id].lastUpdated}\n` : '') + (visaMeta[v.id]?.summary ? visaMeta[v.id].summary : '')} style={{ textDecoration: 'none' }}>
+                      <div className="visa-card" style={{ borderColor: competitive ? v.color + "60" : "#1E293B", background: competitive ? v.color + "08" : "#0A1222", padding: "12px", minWidth: 160, cursor: 'pointer' }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div>
+                            <div style={{ fontSize: 12, color: "#94A3B8", display: 'flex', alignItems: 'center', gap: 8 }} className="visa-tooltip">{v.label} · {v.type}
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginLeft: 6 }}>
+                                <path d="M14 3h7v7" stroke="#38BDF8" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                                <path d="M10 14L21 3" stroke="#38BDF8" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                                <path d="M21 21H3V3h7" stroke="#38BDF8" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                              <div className="tip" role="tooltip">
+                                <h4>{v.label} · {v.type}</h4>
+                                <p>{visaMeta[v.id]?.summary || 'Live details at the official DHA page.'}</p>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <small style={{ color: '#64748b' }}>{visaMeta[v.id]?.lastUpdated ? `Updated: ${visaMeta[v.id].lastUpdated}` : ''}</small>
+                                  <a className="visa-link" href={v.href} target="_blank" rel="noreferrer">Open page</a>
+                                </div>
+                              </div>
+                            </div>
+                            <div style={{ fontSize: 20, fontWeight: 800, color: competitive ? v.color : "#F1F5F9" }}>{displayVal}</div>
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+                            <div style={{ fontSize: 11, padding: "4px 8px", borderRadius: 8, background: competitive ? v.color+"20" : "#0F1929", color: competitive ? v.color : "#94A3B8", fontWeight: 700 }}>{competitive ? 'STRONG' : eligible ? 'ELIGIBLE' : 'LOW'}</div>
+                            {editingVisa === v.id ? (
+                              <div style={{ display: "flex", gap: 6 }}>
+                                <button className="visa-save" onClick={(e) => { e.stopPropagation(); e.preventDefault(); const val = Number(tempOverride) || 0; setVisaOverrides(prev => ({ ...prev, [v.id]: { value: val, note: tempNote } })); setEditingVisa(null); }}>Save</button>
+                                <button className="visa-cancel" onClick={(e) => { e.stopPropagation(); e.preventDefault(); setEditingVisa(null); }}>Cancel</button>
+                              </div>
+                            ) : (
+                              <button className="visa-edit-btn" onClick={(e) => { e.stopPropagation(); e.preventDefault(); setEditingVisa(v.id); setTempOverride(String(displayVal)); setTempNote(overrideNote); }}>Edit</button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="visa-detail">{v.note}</div>
+                        <div className="visa-detail">Threshold for strong consideration: <strong>{v.threshold}</strong> pts</div>
+                        <div className="visa-detail">Notes: {overrideNote || '—'}</div>
+                        {editingVisa === v.id && (
+                          <div style={{ marginTop: 8, display: "grid", gap: 8 }} onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}>
+                            <input className="visa-input" type="number" value={tempOverride} onChange={e => setTempOverride(e.target.value)} />
+                            <textarea className="visa-input" rows={2} value={tempNote} onChange={e => setTempNote(e.target.value)} />
+                          </div>
+                        )}
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+
               <div style={{ background: "#0A1222", border: "1px solid #1E293B", borderRadius: 12, padding: "14px 16px" }}>
                 <div className="field-label">🧰 Nominated Occupation</div>
                 <div className="field-hint">Search and change anytime. Source: DHA Core Skills Occupation List (auto-load).</div>
@@ -516,60 +722,55 @@ export default function App() {
             {/* ── RIGHT: results ── */}
             <div style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 24 }}>
 
-              {/* Score gauge */}
-              <div style={{ background: "#0A1222", border: `2px solid ${scoreColor(total)}30`, borderRadius: 18, padding: "24px 20px", textAlign: "center" }}>
-                <div style={{ color: "#94A3B8", fontSize: 12, fontWeight: 600, marginBottom: 8 }}>YOUR TOTAL SCORE</div>
-                <div style={{ display: "flex", justifyContent: "center" }}>
-                  <ScoreGauge score={total} color={scoreColor(total)} />
-                </div>
-                <div style={{ marginTop: 10, fontSize: 13, fontWeight: 700, color: scoreColor(total) }}>{viabilityLabel(total)}</div>
-                <div style={{ marginTop: 12, display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
-                  <div style={{ fontSize: 11, color: "#64748B" }}>Base (no nomination): <strong style={{ color: "#fff" }}>{baseTotal}</strong></div>
-                </div>
-              </div>
-
-              {/* Visa pathway cards */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-                {[
-                  { label: "189", sub: "Independent", total: baseTotal, threshold: 85, color: "#38BDF8", note: "Permanent · Anywhere in AU" },
-                  { label: "190", sub: "Nominated",   total: with190,   threshold: 75, color: "#A78BFA", note: "+5 pts · State commitment 2yr" },
-                  { label: "491", sub: "Regional",    total: with491,   threshold: 65, color: "#34D399", note: "+15 pts · Regional 3yr → PR 191" },
-                ].map(v => {
-                  const eligible = v.total >= 65;
-                  const competitive = v.total >= v.threshold;
-                  return (
-                    <div key={v.label} className="visa-card" style={{ borderColor: competitive ? v.color + "60" : "#1E293B", background: competitive ? v.color + "08" : "#0A1222" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                        <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, color: competitive ? v.color : "#334155" }}>{v.label}</span>
-                        {competitive ? <span style={{ fontSize: 9, background: v.color + "20", color: v.color, padding: "2px 6px", borderRadius: 4, fontWeight: 700 }}>STRONG</span>
-                         : eligible ? <span style={{ fontSize: 9, background: "#FBBF2420", color: "#FBBF24", padding: "2px 6px", borderRadius: 4, fontWeight: 700 }}>ELIGIBLE</span>
-                         : <span style={{ fontSize: 9, background: "#33415520", color: "#475569", padding: "2px 6px", borderRadius: 4, fontWeight: 700 }}>LOW</span>}
-                      </div>
-                      <div style={{ color: "#64748B", fontSize: 10, marginBottom: 8 }}>{v.sub}</div>
-                      <div style={{ fontSize: 22, fontWeight: 800, color: competitive ? v.color : eligible ? "#FBBF24" : "#475569", fontFamily: "'DM Serif Display', serif" }}>{v.total}</div>
-                      <div style={{ fontSize: 10, color: "#475569", marginTop: 2 }}>pts effective</div>
-                      <div style={{ marginTop: 8, height: 3, background: "#1E293B", borderRadius: 2, overflow: "hidden" }}>
-                        <div style={{ height: "100%", borderRadius: 2, background: competitive ? v.color : "#FBBF24", width: `${Math.min((v.total / 90) * 100, 100)}%`, transition: "width .4s" }}></div>
-                      </div>
-                      <div style={{ fontSize: 10, color: "#334155", marginTop: 4 }}>{v.note}</div>
+              {/* Visa cards on the left, score gauge + breakdown centered */}
+              <div className="score-visa-row" style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                <div className="score-center" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12, alignItems: "center" }}>
+                  {/* Score gauge */}
+                  <div style={{ background: "#0A1222", border: `2px solid ${scoreColor(total)}30`, borderRadius: 18, padding: "24px 20px", textAlign: "center", width: "100%" }}>
+                    <div style={{ color: "#94A3B8", fontSize: 12, fontWeight: 600, marginBottom: 8 }}>YOUR TOTAL SCORE</div>
+                    <div style={{ display: "flex", justifyContent: "center" }}>
+                      <ScoreGauge score={total} color={scoreColor(total)} />
                     </div>
-                  );
-                })}
+                    <div style={{ marginTop: 10, fontSize: 13, fontWeight: 700, color: scoreColor(total) }}>{viabilityLabel(total)}</div>
+                    <div style={{ marginTop: 12, display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+                      <div style={{ fontSize: 11, color: "#64748B" }}>Base (no nomination): <strong style={{ color: "#fff" }}>{baseTotal}</strong></div>
+                    </div>
+                  </div>
+
+                  {/* Editable Points Breakdown */}
+                  <div style={{ background: "#0A1222", border: "1px solid #1E293B", borderRadius: 14, padding: "12px 14px", width: "100%" }}>
+                    <div style={{ fontWeight: 700, fontSize: 12, color: "#94A3B8", marginBottom: 10 }}>POINTS BREAKDOWN</div>
+                    <div style={{ display: "grid", gap: 8 }}>
+                      {Object.keys(POINTS_CONFIG).map((k) => (
+                        <div key={k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                          <div style={{ fontSize: 11, color: "#94A3B8" }}>{POINTS_CONFIG[k].label}</div>
+                          <div style={{ width: 170 }}>
+                            <Select value={pts[k]} onChange={(v) => set(k, v)} options={POINTS_CONFIG[k].options} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* EOI context from screenshot */}
               <div style={{ background: "#0A1222", border: "1px solid #1E293B", borderRadius: 14, padding: "16px" }}>
                 <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: "#94A3B8" }}>📋 Your EOI Pool Status (from Settledin)</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
-                  {[
-                    { label: "Occupation", val: `${selectedOccupation.code} ${selectedOccupation.title}` },
-                    { label: "State", val: "SA — South Australia" },
-                    { label: "EOIs in pool", val: "6 (+20% ↑)" },
-                    { label: "Pool date", val: "Apr 2026" },
-                  ].map(r => (
+                  {EOI_ROWS.map(r => (
                     <div key={r.label} style={{ background: "#0F1929", borderRadius: 8, padding: "8px 10px" }}>
                       <div style={{ fontSize: 10, color: "#475569", marginBottom: 2 }}>{r.label}</div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: "#E2E8F0" }}>{r.val}</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#E2E8F0" }}>
+                        {r.isState ? (
+                          <select value={eoiState} onChange={(e) => setEoiState(e.target.value)}
+                            style={{ background: "#0F1929", border: "1px solid #334155", borderRadius: 8, color: "#fff", fontSize: 12, padding: "6px 8px", width: "100%", outline: "none" }}>
+                            {AU_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        ) : (
+                          r.val
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -616,21 +817,7 @@ export default function App() {
                 ))}
               </div>
 
-              {/* Points breakdown bar */}
-              <div style={{ background: "#0A1222", border: "1px solid #1E293B", borderRadius: 14, padding: "16px" }}>
-                <div style={{ fontWeight: 700, fontSize: 12, color: "#94A3B8", marginBottom: 12 }}>POINTS BREAKDOWN</div>
-                {breakdown.map((d, i) => (
-                  <div key={i} style={{ marginBottom: 8 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                      <span style={{ fontSize: 11, color: "#94A3B8" }}>{d.name}</span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: d.color }}>+{d.pts}</span>
-                    </div>
-                    <div style={{ height: 4, background: "#1E293B", borderRadius: 2, overflow: "hidden" }}>
-                      <div style={{ height: "100%", background: d.color, borderRadius: 2, width: `${(d.pts / 30) * 100}%`, transition: "width .4s" }}></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {/* (Points breakdown moved above the gauge and made editable) */}
             </div>
           </div>
         </div>
