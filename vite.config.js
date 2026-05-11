@@ -8,5 +8,18 @@ export default defineConfig({
     proxy: {
       '/api': 'http://localhost:3000'
     }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react':    ['react', 'react-dom'],
+          'vendor-motion':   ['framer-motion'],
+          'vendor-charts':   ['recharts'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'advanced-panels': ['./src/components/PTEAdvancedPanels.jsx'],
+        }
+      }
+    }
   }
 })
