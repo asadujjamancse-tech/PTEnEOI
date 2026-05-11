@@ -1,3 +1,22 @@
+/**
+ * useStreakXP.js — Daily study streak and XP level system
+ *
+ * Streak logic:
+ *  - Studying on consecutive calendar days increments the streak
+ *  - Missing a day resets the streak to 1
+ *  - Streak bonus XP is awarded on top of the base amount (min(streak*5, 50))
+ *
+ * XP and levels:
+ *  - LEVEL_THRESHOLDS defines cumulative XP needed for each level (1–11)
+ *  - Level 11 = "PTE 90" — the top achievement
+ *  - addXP(amount, reason) is called from any component after a practice action
+ *
+ * Storage: localStorage keys pte_streak_v1 and pte_xp_v1
+ *
+ * Usage:
+ *   const { currentStreak, totalXP, level, addXP } = useStreakXP()
+ *   addXP(20, "AI Scorer")  // call after any scored action
+ */
 import { useState, useCallback } from "react";
 
 const STREAK_KEY = "pte_streak_v1";

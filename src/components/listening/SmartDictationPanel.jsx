@@ -1,3 +1,22 @@
+/**
+ * SmartDictationPanel.jsx — Spaced Repetition Write From Dictation
+ *
+ * Implements a simplified SM-2 spaced repetition algorithm so that:
+ *  - Sentences you get right (≥90%) are pushed further into the future
+ *  - Sentences you struggle with (< 60%) come back the next day
+ *  - Questions you've never seen are shown first (easiest difficulty first)
+ *
+ * Features:
+ *  - Weak-word tracker: counts every word missed across all sessions
+ *  - Accent variation: cycles AU/GB/US TTS voices per question
+ *  - Mastery progress bar: shows how many of 30 sentences are "mastered" (≥7 day interval)
+ *
+ * Storage:
+ *  - smart_wfd_v1    → SRS card state per question id { ef, interval, dueAt, lastPct }
+ *  - smart_wfd_weak_v1 → word → miss count map
+ *
+ * See docs/ARCHITECTURE.md §6 for full SRS algorithm explanation.
+ */
 import { useState, useCallback, useMemo } from "react";
 import QUESTIONS from "../../data/writeDictationQuestions";
 import useScoreTracker from "../../hooks/useScoreTracker";
@@ -127,7 +146,7 @@ export default function SmartDictationPanel() {
   const submit = useCallback(() => {
     if (!answer.trim()) return;
     setSubmitted(true);
-    const { pct, correct, total } = scoreSequential(currentQ.text, answer);
+    const { pct } = scoreSequential(currentQ.text, answer);
 
     // Update SRS
     const updated = updateSRS(srs[currentQ.id], pct);
