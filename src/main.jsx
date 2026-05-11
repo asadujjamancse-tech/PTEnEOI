@@ -1,3 +1,21 @@
+/**
+ * main.jsx — Application entry point
+ *
+ * Responsibilities:
+ *  - Wraps the whole app in ThemeProvider (dark/light mode) and ErrorBoundary
+ *  - App: handles the auth lifecycle (checking → login → authed)
+ *    by calling /api/auth/app on load and validating the stored token
+ *  - AppSwitcher: renders the sticky top nav bar and switches between the
+ *    four main pages: PTE Master, Score Weights, PR Dashboard, EOI Pulse
+ *  - AITutorChat floats over every page as a persistent widget
+ *
+ * Auth flow:
+ *  1. GET /api/auth/app   → does this app require a password?
+ *  2. If yes, check localStorage for app_token
+ *  3. POST /api/auth/app/validate to confirm token is still valid
+ *  4. If invalid → show LoginScreen
+ *  5. On successful login → store token + username in localStorage
+ */
 import React, { useState, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 
