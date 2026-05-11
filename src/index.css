@@ -1,10 +1,18 @@
 html,body,#root { height: 100%; margin: 0; }
-body { background: #080E1A; transition: background .2s; }
+body { background: #080E1A; transition: background .2s; overflow-x: hidden; }
 [data-theme="light"] body { background: #F0F4F8; }
 button, input, textarea, select { touch-action: manipulation; }
 
+/* Prevent horizontal blowout on any viewport */
+* { box-sizing: border-box; }
+img, video { max-width: 100%; }
+
 @media (max-width: 760px) {
-  body { overflow-x: hidden; }
-  table { min-width: 560px; }
-  .tab-btn, .main-tab, .qtab { min-height: 40px; }
+  .tab-btn, .main-tab, .qtab { min-height: 44px; }
+}
+
+/* Touch-friendly tap targets on mobile */
+@media (max-width: 480px) {
+  button { min-height: 40px; }
+  input, textarea, select { font-size: 16px !important; } /* prevent iOS zoom on focus */
 }

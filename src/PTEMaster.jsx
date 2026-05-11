@@ -120,6 +120,7 @@ const SCORE_PROMPT = `You are a certified PTE Academic expert examiner with 10+ 
 
 export default function PTEMaster() {
   const { darkMode } = useTheme();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   // ---- Component state ----
   // `tab` switches between the app's main screens.
   const [tab, setTab] = useState("priority");
@@ -244,6 +245,7 @@ export default function PTEMaster() {
     if (mainTab === "writing")   setWritingTab(subId);
     if (mainTab === "reading")   setReadingTab(subId);
     if (mainTab === "listening") setListeningTab(subId);
+    setSidebarOpen(false);
   };
 
   const isSubActive = (zone, subId) => {
@@ -321,6 +323,62 @@ export default function PTEMaster() {
         .nav-sub.active  { box-shadow: inset 3px 0 0 var(--zone-color, #38BDF8); }
         .nav-tool.active { box-shadow: inset 3px 0 0 #38BDF8; }
 
+        /* ── Responsive helpers ── */
+        .pte-content-inner { padding: 28px 24px; }
+        .table-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .table-scroll-wrap::-webkit-scrollbar { height: 3px; }
+        .table-scroll-wrap::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 2px; }
+        .sub-tabs-scroll { display: flex; gap: 6px; background: #0A1222; border-radius: 10px; padding: 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .sub-tabs-scroll::-webkit-scrollbar { height: 0; }
+        .mob-sidebar-btn {
+          display: none; align-items: center; gap: 7px;
+          padding: 7px 12px; border: 1px solid rgba(255,255,255,0.12);
+          background: rgba(255,255,255,0.04); border-radius: 9px;
+          color: rgba(255,255,255,0.7); font-size: 13px; font-weight: 600;
+          cursor: pointer; font-family: inherit; transition: all .2s; margin-bottom: 16px;
+        }
+        .mob-sidebar-btn:hover { background: rgba(255,255,255,0.08); }
+        .sidebar-overlay {
+          display: none; position: fixed; inset: 0; top: 54px;
+          background: rgba(0,0,0,0.55); z-index: 49;
+        }
+
+        /* Tablet (≤768px): sidebar becomes slide-in drawer */
+        @media (max-width: 768px) {
+          .sidebar {
+            position: fixed !important; left: 0; top: 54px;
+            height: calc(100vh - 54px) !important; z-index: 50;
+            transform: translateX(-100%);
+            transition: transform .28s cubic-bezier(.4,0,.2,1);
+            box-shadow: 6px 0 32px rgba(0,0,0,0.55);
+          }
+          .sidebar.open { transform: translateX(0); }
+          .sidebar-overlay.open { display: block; }
+          .mob-sidebar-btn { display: flex; }
+          .pte-content-inner { padding: 18px 16px !important; }
+          .resp-grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
+          .resp-grid-2 { grid-template-columns: 1fr !important; }
+          .resp-strengths { grid-template-columns: 1fr !important; }
+          .resp-tracker-form { grid-template-columns: 1fr 1fr !important; }
+          .sub-tabs-scroll button { flex: 0 0 auto !important; min-width: 110px; }
+        }
+
+        /* Mobile (≤480px): tighter padding, single column everywhere */
+        @media (max-width: 480px) {
+          .pte-content-inner { padding: 12px !important; }
+          .resp-grid-4 { grid-template-columns: 1fr 1fr !important; }
+          .resp-tracker-form { grid-template-columns: 1fr 1fr !important; }
+          .sub-tabs-scroll button { min-width: 96px; }
+        }
+
+        /* Light mode overrides for responsive elements */
+        [data-theme="light"] .mob-sidebar-btn {
+          border-color: rgba(0,0,0,0.1); background: rgba(0,0,0,0.04); color: rgba(0,0,0,0.6);
+        }
+        [data-theme="light"] .mob-sidebar-btn:hover { background: rgba(0,0,0,0.08); }
+        [data-theme="light"] .sub-tabs-scroll { background: #E8EEF6; }
+        [data-theme="light"] .table-scroll-wrap::-webkit-scrollbar-thumb { background: #CBD5E1; }
+
         /* ── Light mode overrides ── */
         [data-theme="light"] ::-webkit-scrollbar-track { background: #F0F4F8; }
         [data-theme="light"] ::-webkit-scrollbar-thumb { background: #CBD5E1; }
@@ -351,8 +409,11 @@ export default function PTEMaster() {
         [data-theme="light"] tr:hover td { background: rgba(0,0,0,.02); }
       `}</style>
 
+      {/* Mobile sidebar backdrop overlay */}
+      <div className={`sidebar-overlay${sidebarOpen ? " open" : ""}`} onClick={() => setSidebarOpen(false)} />
+
       {/* ── SIDEBAR ── */}
-      <div className="sidebar">
+      <div className={`sidebar${sidebarOpen ? " open" : ""}`}>
         {/* Logo + score badges */}
         <div style={{ padding: "18px 16px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 12 }}>
@@ -383,7 +444,7 @@ export default function PTEMaster() {
             <div key={zone.id}>
               <button
                 className={`nav-zone${zoneActive ? " active" : ""}`}
-                onClick={() => { setTab(zone.id); }}
+                onClick={() => { setTab(zone.id); setSidebarOpen(false); }}
               >
                 <div className="nav-zone-tag" style={{ background: `${zone.color}20`, color: zone.color }}>
                   {zone.tag}
@@ -414,7 +475,7 @@ export default function PTEMaster() {
           <button
             key={t.id}
             className={`nav-tool${tab === t.id ? " active" : ""}`}
-            onClick={() => setTab(t.id)}
+            onClick={() => { setTab(t.id); setSidebarOpen(false); }}
           >
             <span className="nav-tool-icon">{t.icon}</span>
             {t.label}
@@ -424,7 +485,12 @@ export default function PTEMaster() {
 
       {/* ── MAIN CONTENT ── */}
       <div style={{ flex: 1, overflowY: "auto", minWidth: 0 }}>
-      <div style={{ maxWidth: 960, margin: "0 auto", padding: "28px 24px" }}>
+      <div className="pte-content-inner" style={{ maxWidth: 960, margin: "0 auto" }}>
+
+        {/* Mobile sidebar toggle — hidden on desktop via CSS */}
+        <button className="mob-sidebar-btn" onClick={() => setSidebarOpen(o => !o)}>
+          ☰ <span>Navigation</span>
+        </button>
 
         {/* ───── PRIORITY MAP ───── */}
         {tab === "priority" && (
@@ -439,7 +505,7 @@ export default function PTEMaster() {
             </div>
 
             {/* Zone overview pills */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 28 }}>
+            <div className="resp-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 28 }}>
               {['S','W','R','L'].map(z => {
                 const zt = PRIORITY_TASKS.filter(t => t.zone === z);
                 return (
@@ -459,7 +525,7 @@ export default function PTEMaster() {
                   <div style={{ width: 10, height: 10, borderRadius: "50%", background: ZONE_COLOR[zone] }}></div>
                   <span style={{ fontWeight: 700, fontSize: 14, color: ZONE_COLOR[zone] }}>{ZONE_NAME[zone]} Zone</span>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
+                <div className="resp-grid-2" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
                   {PRIORITY_TASKS.filter(t => t.zone === zone).map(task => (
                     <div
                       key={task.id}
@@ -617,7 +683,7 @@ export default function PTEMaster() {
                 </div>
 
                 {/* Strengths + Fixes */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div className="resp-strengths" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div style={{ background: "#052E1C", border: "1px solid #064E3B", borderRadius: 12, padding: "16px" }}>
                     <div style={{ color: "#34D399", fontWeight: 700, fontSize: 13, marginBottom: 8 }}>✅ Strengths</div>
                     {scoreResult.strengths?.map((s, i) => <div key={i} style={{ color: "#94A3B8", fontSize: 12, lineHeight: 1.6 }}>• {s}</div>)}
@@ -649,7 +715,7 @@ export default function PTEMaster() {
             {/* Log form */}
             <div style={{ background: "#0F1929", border: "1px solid #1E293B", borderRadius: 14, padding: "20px", marginBottom: 24 }}>
               <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 14 }}>+ Log New Session</div>
-              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr auto", gap: 10, alignItems: "flex-end" }}>
+              <div className="resp-tracker-form" style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr auto", gap: 10, alignItems: "flex-end" }}>
                 <div>
                   <div style={{ fontSize: 11, color: "#64748B", marginBottom: 4 }}>Date</div>
                   <input type="date" className="input-field" value={form.date} onChange={e => setForm(p => ({...p, date: e.target.value}))} />
@@ -668,7 +734,7 @@ export default function PTEMaster() {
               <>
                 {/* Latest scores */}
                 {latest && (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
+                  <div className="resp-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
                     {['S','W','R','L'].map(z => {
                       const sc = latest[z]; const gap = 90 - sc;
                       return (
@@ -712,7 +778,8 @@ export default function PTEMaster() {
                 {/* Table */}
                 <div style={{ background: "#0F1929", border: "1px solid #1E293B", borderRadius: 14, overflow: "hidden" }}>
                   <div style={{ padding: "14px 20px", borderBottom: "1px solid #1E293B", fontWeight: 700, fontSize: 13 }}>Session History</div>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <div className="table-scroll-wrap">
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 420 }}>
                     <thead>
                       <tr style={{ borderBottom: "1px solid #1E293B" }}>
                         <th style={{ textAlign: "left", padding: "10px 20px", color: "#475569", fontWeight: 600, fontSize: 11 }}>Date</th>
@@ -734,6 +801,7 @@ export default function PTEMaster() {
                       ))}
                     </tbody>
                   </table>
+                  </div>{/* table-scroll-wrap */}
                 </div>
               </>
             )}
@@ -855,7 +923,7 @@ export default function PTEMaster() {
         {/* ───── SPEAKING ZONE ───── */}
         {tab === "speaking" && (
           <div>
-            <div style={{ display: "flex", gap: 6, marginBottom: 20, background: "#0A1222", borderRadius: 10, padding: 4 }}>
+            <div className="sub-tabs-scroll" style={{ marginBottom: 20 }}>
               {[
                 { id: "read_aloud",  label: "📖 Read Aloud",       weight: "15%" },
                 { id: "repeat",      label: "🔁 Repeat Sentence",  weight: "13%" },
@@ -883,7 +951,7 @@ export default function PTEMaster() {
         {/* ───── WRITING ZONE ───── */}
         {tab === "writing" && (
           <div>
-            <div style={{ display: "flex", gap: 6, marginBottom: 20, background: "#0A1222", borderRadius: 10, padding: 4 }}>
+            <div className="sub-tabs-scroll" style={{ marginBottom: 20 }}>
               {[
                 { id: "essay",      label: "✍️ Write Essay",           weight: "24%" },
                 { id: "summarize",  label: "📝 Summarize Written Text", weight: "15%" },
@@ -907,7 +975,7 @@ export default function PTEMaster() {
         {/* ───── READING ZONE ───── */}
         {tab === "reading" && (
           <div>
-            <div style={{ display: "flex", gap: 6, marginBottom: 20, background: "#0A1222", borderRadius: 10, padding: 4 }}>
+            <div className="sub-tabs-scroll" style={{ marginBottom: 20 }}>
               {[
                 { id: "rw_fitb",   label: "📖 R&W Fill Blanks",     weight: "18%" },
                 { id: "reorder",   label: "🔀 Reorder Paragraph",   weight: "13%" },
@@ -935,7 +1003,7 @@ export default function PTEMaster() {
         {/* ───── LISTENING ZONE ───── */}
         {tab === "listening" && (
           <div>
-            <div style={{ display: "flex", gap: 6, marginBottom: 20, background: "#0A1222", borderRadius: 10, padding: 4 }}>
+            <div className="sub-tabs-scroll" style={{ marginBottom: 20 }}>
               {[
                 { id: "dictation",  label: "✍️ Write Dictation",     weight: "22%" },
                 { id: "summarize",  label: "🎧 Summarize Spoken",    weight: "14%" },
