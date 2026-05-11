@@ -46,6 +46,8 @@ import StreakXPBanner from "./components/StreakXPBanner";
 import DailyChallenges from "./components/DailyChallenges";
 import StudyHeatmap from "./components/StudyHeatmap";
 import AIWeaknessDetector from "./components/AIWeaknessDetector";
+import NotesPanel from "./components/NotesPanel";
+import VideoLibrary from "./components/VideoLibrary";
 import useStreakXP from "./hooks/useStreakXP";
 
 // Simple constants used for display colours and labels.
@@ -243,6 +245,8 @@ export default function PTEMaster() {
     { id: "tracker",  label: "Score Tracker",  icon: "📊" },
     { id: "qbank",    label: "Question Bank",  icon: "📚" },
     { id: "vocab",    label: "Rapid Vocab",    icon: "⚡" },
+    { id: "notes",    label: "My Notes",       icon: "📝" },
+    { id: "videos",   label: "Video Library",  icon: "🎬" },
     { id: "mock",     label: "Mock Tests",     icon: "🧪" },
     { id: "planner",  label: "Study Planner",  icon: "🗓" },
     { id: "analytics",label: "Analytics",      icon: "📈" },
@@ -1052,6 +1056,8 @@ export default function PTEMaster() {
           </div>
         )}
         {tab === "vocab" && <RapidFireVocab />}
+        {tab === "notes" && <NotesPanel />}
+        {tab === "videos" && <VideoLibrary />}
         {tab === "planner" && <StudyPlanner />}
         {tab === "analytics" && <><StudyHeatmap /><AIWeaknessDetector /><AnalyticsDashboard /></>}
         {tab === "game" && <GamificationPanel />}

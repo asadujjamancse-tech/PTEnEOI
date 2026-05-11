@@ -71,6 +71,7 @@ export default function LoginScreen({ onLogin }) {
         setError(data.error || "Login failed");
       } else {
         localStorage.setItem("app_token", data.token);
+        localStorage.setItem("app_username", username);
         onLogin(data.token);
       }
     } catch {

@@ -16,6 +16,7 @@ export default defineConfig({
           'vendor-react':    ['react', 'react-dom'],
           'vendor-motion':   ['framer-motion'],
           'vendor-charts':   ['recharts'],
+          'vendor-supabase': ['@supabase/supabase-js'],
           'advanced-panels': ['./src/components/PTEAdvancedPanels.jsx'],
         }
       }
