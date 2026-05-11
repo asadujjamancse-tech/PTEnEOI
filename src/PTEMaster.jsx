@@ -8,6 +8,7 @@
 // - The UI is large (many small sections). If you want to improve readability,
 //   consider splitting the file into smaller components (e.g., ScorerPanel, TrackerPanel).
 import { useState } from "react";
+import { useTheme } from "./ThemeContext";
 import useScoreTracker from "./hooks/useScoreTracker";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import EssayFeedbackPanel from "./components/EssayFeedbackPanel";
@@ -118,6 +119,7 @@ const SCORE_PROMPT = `You are a certified PTE Academic expert examiner with 10+ 
 }`;
 
 export default function PTEMaster() {
+  const { darkMode } = useTheme();
   // ---- Component state ----
   // `tab` switches between the app's main screens.
   const [tab, setTab] = useState("priority");
@@ -264,7 +266,7 @@ export default function PTEMaster() {
   const scoreColor = (s) => s >= 79 ? "#34D399" : s >= 65 ? "#FBBF24" : "#F87171";
 
   return (
-    <div style={{ display: "flex", minHeight: "calc(100vh - 54px)", background: "#080E1A", color: "#fff", fontFamily: "'Inter', 'DM Sans', system-ui, sans-serif" }}>
+    <div style={{ display: "flex", minHeight: "calc(100vh - 54px)", background: darkMode ? "#080E1A" : "#F0F4F8", color: darkMode ? "#fff" : "#0F172A", fontFamily: "'Inter', 'DM Sans', system-ui, sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
         * { box-sizing: border-box; }
@@ -318,6 +320,35 @@ export default function PTEMaster() {
         /* Active left border glow */
         .nav-sub.active  { box-shadow: inset 3px 0 0 var(--zone-color, #38BDF8); }
         .nav-tool.active { box-shadow: inset 3px 0 0 #38BDF8; }
+
+        /* ── Light mode overrides ── */
+        [data-theme="light"] ::-webkit-scrollbar-track { background: #F0F4F8; }
+        [data-theme="light"] ::-webkit-scrollbar-thumb { background: #CBD5E1; }
+        [data-theme="light"] .sidebar { background: #E8EEF6; border-right-color: rgba(0,0,0,0.08); }
+        [data-theme="light"] .sidebar::-webkit-scrollbar-thumb { background: #CBD5E1; }
+        [data-theme="light"] .nav-section { color: rgba(0,0,0,0.3); }
+        [data-theme="light"] .nav-zone { color: rgba(0,0,0,0.55); }
+        [data-theme="light"] .nav-zone:hover { color: rgba(0,0,0,0.85); background: rgba(0,0,0,0.04); }
+        [data-theme="light"] .nav-zone.active { color: #0F172A; background: rgba(0,0,0,0.06); }
+        [data-theme="light"] .nav-sub { color: rgba(0,0,0,0.4); }
+        [data-theme="light"] .nav-sub:hover { color: rgba(0,0,0,0.75); background: rgba(0,0,0,0.03); }
+        [data-theme="light"] .nav-sub.active { color: #0F172A; background: rgba(0,0,0,0.07); }
+        [data-theme="light"] .nav-tool { color: rgba(0,0,0,0.45); }
+        [data-theme="light"] .nav-tool:hover { color: rgba(0,0,0,0.8); background: rgba(0,0,0,0.04); }
+        [data-theme="light"] .nav-tool.active { color: #0369A1; background: rgba(14,165,233,0.1); }
+        [data-theme="light"] .task-card { background: #FFFFFF; border-color: #E2E8F0; color: #0F172A; }
+        [data-theme="light"] .task-card:hover { border-color: #CBD5E1; }
+        [data-theme="light"] .pill { background: #E2E8F0; color: #475569; }
+        [data-theme="light"] .qtab { background: #F1F5F9; border-color: #E2E8F0; color: #475569; }
+        [data-theme="light"] .qtab:hover:not(.active) { border-color: #94A3B8; color: #334155; }
+        [data-theme="light"] .qtab.active { background: #0EA5E9; border-color: #0EA5E9; color: #fff; }
+        [data-theme="light"] .input-field { background: #FFFFFF; border-color: #CBD5E1; color: #0F172A; }
+        [data-theme="light"] .score-bar-bg { background: #E2E8F0; }
+        [data-theme="light"] .reveal-btn { color: #94A3B8; }
+        [data-theme="light"] .reveal-btn:hover { color: #64748B; }
+        [data-theme="light"] .select-blank { background: #F1F5F9; border-color: #CBD5E1; color: #0F172A; }
+        [data-theme="light"] .btn-primary:disabled { background: #E2E8F0; color: #94A3B8; }
+        [data-theme="light"] tr:hover td { background: rgba(0,0,0,.02); }
       `}</style>
 
       {/* ── SIDEBAR ── */}

@@ -1,5 +1,6 @@
 html,body,#root { height: 100%; margin: 0; }
-body { background: #080E1A; }
+body { background: #080E1A; transition: background .2s; }
+[data-theme="light"] body { background: #F0F4F8; }
 button, input, textarea, select { touch-action: manipulation; }
 
 @media (max-width: 760px) {
