@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, RadialBarChart, RadialBar } from "recharts";
 import { useRef } from "react";
+import { useTheme } from "./ThemeContext";
 
 // ─── DATA ───────────────────────────────────────────────────────────────────
 
@@ -190,17 +191,17 @@ const FALLBACK_OCCUPATIONS = [
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 
-function ScoreGauge({ score, max = 90, color }) {
+function ScoreGauge({ score, max = 90, color, dm }) {
   const pct = Math.min((score / max) * 100, 100);
   const r = 54; const circ = 2 * Math.PI * r;
   const dash = (pct / 100) * circ;
   return (
     <svg width="140" height="140" viewBox="0 0 140 140">
-      <circle cx="70" cy="70" r={r} fill="none" stroke="#1E293B" strokeWidth="10" />
+      <circle cx="70" cy="70" r={r} fill="none" stroke={dm ? "#1E293B" : "#E2E8F0"} strokeWidth="10" />
       <circle cx="70" cy="70" r={r} fill="none" stroke={color} strokeWidth="10"
         strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
         transform="rotate(-90 70 70)" style={{ transition: "stroke-dasharray .6s ease" }} />
-      <text x="70" y="65" textAnchor="middle" fill="#fff" fontSize="28" fontWeight="800" fontFamily="'DM Serif Display', serif">{score}</text>
+      <text x="70" y="65" textAnchor="middle" fill={dm ? "#fff" : "#0F172A"} fontSize="28" fontWeight="800" fontFamily="'DM Serif Display', serif">{score}</text>
       <text x="70" y="84" textAnchor="middle" fill="#64748B" fontSize="11" fontFamily="'DM Sans', sans-serif">/ 90 pts</text>
     </svg>
   );
@@ -209,6 +210,7 @@ function ScoreGauge({ score, max = 90, color }) {
 function Select({ value, onChange, options }) {
   return (
     <select value={value} onChange={e => onChange(+e.target.value)}
+      className="pr-select"
       style={{ background: "#0F1929", border: "1px solid #334155", borderRadius: 8, color: "#fff", fontSize: 13, padding: "8px 12px", width: "100%", outline: "none", fontFamily: "'DM Sans', sans-serif", cursor: "pointer", appearance: "none", backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748B' d='M6 8L1 3h10z'/%3E%3C/svg%3E\")", backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center" }}>
       {options.map(o => <option key={o.value + o.label} value={o.value}>{o.label} — {o.value > 0 ? "+" : ""}{o.value} pts</option>)}
     </select>
@@ -232,6 +234,7 @@ const CustomTooltip = ({ active, payload, color }) => {
 // ─── MAIN APP ───────────────────────────────────────────────────────────────
 
 export default function App() {
+  const { darkMode: dm } = useTheme();
   const [mainTab, setMainTab] = useState("pr");
 
   // PTE tab state
@@ -504,7 +507,7 @@ export default function App() {
   ];
 
   return (
-    <div style={{ minHeight: "100vh", background: "#070D1A", color: "#fff", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: dm ? "#070D1A" : "#F0F4F8", color: dm ? "#fff" : "#0F172A", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -558,10 +561,50 @@ export default function App() {
           .visa-card { width: 100%; }
           select { width: 100%; }
         }
+
+        /* ── Light mode overrides ── */
+        [data-theme="light"] ::-webkit-scrollbar-track { background: #F0F4F8; }
+        [data-theme="light"] ::-webkit-scrollbar-thumb { background: #CBD5E1; }
+        [data-theme="light"] .main-tab { color: rgba(0,0,0,0.45); }
+        [data-theme="light"] .main-tab.active { color: #0F172A; border-bottom-color: #0EA5E9; }
+        [data-theme="light"] .main-tab:hover:not(.active) { color: rgba(0,0,0,0.65); }
+        [data-theme="light"] .skill-tab { color: rgba(0,0,0,0.45); }
+        [data-theme="light"] .skill-tab.active { color: #0F172A; }
+        [data-theme="light"] .view-btn { background: #F1F5F9; border-color: #E2E8F0; color: rgba(0,0,0,0.45); }
+        [data-theme="light"] .field-label { color: #64748B; }
+        [data-theme="light"] .field-hint { color: #94A3B8; }
+        [data-theme="light"] .info-note { background: #EFF6FF; border-color: #93C5FD; color: #1D4ED8; }
+        [data-theme="light"] .visa-mini { background: #F8FAFC; border-color: #E2E8F0; }
+        [data-theme="light"] .visa-card { background: #FFFFFF !important; }
+        [data-theme="light"] .visa-detail { color: #64748B; }
+        [data-theme="light"] .visa-edit-btn { background: transparent; border-color: #E2E8F0; color: #0EA5E9; }
+        [data-theme="light"] .visa-cancel { background: #F1F5F9; border-color: #E2E8F0; color: #64748B; }
+        [data-theme="light"] .visa-input { background: #FFFFFF; border-color: #CBD5E1; color: #0F172A; }
+        [data-theme="light"] .visa-link { color: #0EA5E9; }
+        [data-theme="light"] .visa-tooltip .tip { background: #FFFFFF; border-color: #E2E8F0; color: #475569; box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
+        [data-theme="light"] .visa-tooltip .tip h4 { color: #0F172A; }
+        [data-theme="light"] .pr-header { background: #FFFFFF !important; border-bottom-color: #E2E8F0 !important; }
+        [data-theme="light"] .pr-tabs-bar { background: #FFFFFF !important; border-bottom-color: #E2E8F0 !important; }
+        [data-theme="light"] .pr-card { background: #FFFFFF !important; border-color: #E2E8F0 !important; }
+        [data-theme="light"] .pr-select { background: #FFFFFF !important; border-color: #CBD5E1 !important; color: #0F172A !important; }
+        [data-theme="light"] .pr-row-item { background: #F8FAFC !important; }
+        [data-theme="light"] .pr-circle-card { background: #FFFFFF !important; border-color: rgba(0,0,0,0.1) !important; }
+        [data-theme="light"] .pr-breakdown-card { background: #FFFFFF !important; border-color: #E2E8F0 !important; }
+        [data-theme="light"] .sw-card { background: #FFFFFF !important; border-color: #E2E8F0 !important; }
+        [data-theme="light"] .sw-tab-btn-inactive { background: #F1F5F9 !important; border-color: #CBD5E1 !important; color: rgba(0,0,0,0.5) !important; }
+        [data-theme="light"] .pr-card input,
+        [data-theme="light"] .pr-card select { background: #FFFFFF !important; border-color: #CBD5E1 !important; color: #0F172A !important; }
+        [data-theme="light"] .pr-row-item select { background: #F8FAFC !important; border-color: #CBD5E1 !important; color: #0F172A !important; }
+        [data-theme="light"] .pr-card .pr-visa-desc { color: #475569 !important; }
+        [data-theme="light"] .pr-card .pr-visa-desc strong { color: #0F172A !important; }
+        [data-theme="light"] .pr-breakdown-card .pr-breakdown-label { color: #64748B !important; }
+        [data-theme="light"] .pr-circle-card .pr-gauge-label { color: #64748B !important; }
+        [data-theme="light"] .pr-eoi-strategy { background: #F0FDF4 !important; border-color: #86EFAC !important; }
+        [data-theme="light"] .pr-eoi-strategy .pr-eoi-text { color: #475569 !important; }
       `}</style>
 
       {/* ── Top header ── */}
-      <div style={{ background: "#0A1222", borderBottom: "1px solid #1E293B", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div className="pr-header" style={{ background: "#0A1222", borderBottom: "1px solid #1E293B", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
           <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20 }}>
             Australia <span style={{ color: "#38BDF8", fontStyle: "italic" }}>PR & PTE</span> Dashboard
@@ -572,7 +615,7 @@ export default function App() {
       </div>
 
       {/* ── Main tabs ── */}
-      <div style={{ background: "#0A1222", borderBottom: "1px solid #1E293B", paddingLeft: 24, display: "flex" }}>
+      <div className="pr-tabs-bar" style={{ background: "#0A1222", borderBottom: "1px solid #1E293B", paddingLeft: 24, display: "flex" }}>
         {MAIN_TABS.map(t => (
           <button key={t.id} className={`main-tab${mainTab === t.id ? " active" : ""}`} onClick={() => setMainTab(t.id)}>
             {t.icon} {t.label}
@@ -675,7 +718,7 @@ export default function App() {
                 })}
               </div>
 
-              <div style={{ background: "#0A1222", border: "1px solid #1E293B", borderRadius: 12, padding: "14px 16px" }}>
+              <div className="pr-card" style={{ background: "#0A1222", border: "1px solid #1E293B", borderRadius: 12, padding: "14px 16px" }}>
                 <div className="field-label">🧰 Nominated Occupation</div>
                 <div className="field-hint">Search and change anytime. Source: DHA Core Skills Occupation List (auto-load).</div>
                 <input
@@ -699,7 +742,7 @@ export default function App() {
               {/* Grid of selects */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                 {Object.entries(POINTS_CONFIG).map(([key, cfg]) => (
-                  <div key={key} style={{ background: "#0A1222", border: "1px solid #1E293B", borderRadius: 12, padding: "14px 16px" }}>
+                  <div key={key} className="pr-card" style={{ background: "#0A1222", border: "1px solid #1E293B", borderRadius: 12, padding: "14px 16px" }}>
                     <div className="field-label">{cfg.icon} {cfg.label}</div>
                     <div className="field-hint">{cfg.hint}</div>
                     <Select value={pts[key]} onChange={v => set(key, v)} options={cfg.options} />
@@ -726,10 +769,10 @@ export default function App() {
               <div className="score-visa-row" style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
                 <div className="score-center" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12, alignItems: "center" }}>
                   {/* Score gauge */}
-                  <div style={{ background: "#0A1222", border: `2px solid ${scoreColor(total)}30`, borderRadius: 18, padding: "24px 20px", textAlign: "center", width: "100%" }}>
+                  <div className="pr-circle-card" style={{ background: "#0A1222", border: `2px solid ${scoreColor(total)}30`, borderRadius: 18, padding: "24px 20px", textAlign: "center", width: "100%" }}>
                     <div style={{ color: "#94A3B8", fontSize: 12, fontWeight: 600, marginBottom: 8 }}>YOUR TOTAL SCORE</div>
                     <div style={{ display: "flex", justifyContent: "center" }}>
-                      <ScoreGauge score={total} color={scoreColor(total)} />
+                      <ScoreGauge score={total} color={scoreColor(total)} dm={dm} />
                     </div>
                     <div style={{ marginTop: 10, fontSize: 13, fontWeight: 700, color: scoreColor(total) }}>{viabilityLabel(total)}</div>
                     <div style={{ marginTop: 12, display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
@@ -738,7 +781,7 @@ export default function App() {
                   </div>
 
                   {/* Editable Points Breakdown */}
-                  <div style={{ background: "#0A1222", border: "1px solid #1E293B", borderRadius: 14, padding: "12px 14px", width: "100%" }}>
+                  <div className="pr-breakdown-card" style={{ background: "#0A1222", border: "1px solid #1E293B", borderRadius: 14, padding: "12px 14px", width: "100%" }}>
                     <div style={{ fontWeight: 700, fontSize: 12, color: "#94A3B8", marginBottom: 10 }}>POINTS BREAKDOWN</div>
                     <div style={{ display: "grid", gap: 8 }}>
                       {Object.keys(POINTS_CONFIG).map((k) => (
@@ -755,11 +798,11 @@ export default function App() {
               </div>
 
               {/* EOI context from screenshot */}
-              <div style={{ background: "#0A1222", border: "1px solid #1E293B", borderRadius: 14, padding: "16px" }}>
+              <div className="pr-card" style={{ background: "#0A1222", border: "1px solid #1E293B", borderRadius: 14, padding: "16px" }}>
                 <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: "#94A3B8" }}>📋 Your EOI Pool Status (from Settledin)</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
                   {EOI_ROWS.map(r => (
-                    <div key={r.label} style={{ background: "#0F1929", borderRadius: 8, padding: "8px 10px" }}>
+                    <div key={r.label} className="pr-row-item" style={{ background: "#0F1929", borderRadius: 8, padding: "8px 10px" }}>
                       <div style={{ fontSize: 10, color: "#475569", marginBottom: 2 }}>{r.label}</div>
                       <div style={{ fontSize: 12, fontWeight: 700, color: "#E2E8F0" }}>
                         {r.isState ? (
@@ -774,9 +817,9 @@ export default function App() {
                     </div>
                   ))}
                 </div>
-                <div style={{ background: "#052E1C", borderRadius: 8, padding: "10px 12px", border: "1px solid #065F46" }}>
+                <div className="pr-eoi-strategy" style={{ background: "#052E1C", borderRadius: 8, padding: "10px 12px", border: "1px solid #065F46" }}>
                   <div style={{ color: "#34D399", fontWeight: 700, fontSize: 12, marginBottom: 4 }}>💡 EOI Strategy</div>
-                  <div style={{ color: "#94A3B8", fontSize: 12, lineHeight: 1.6 }}>
+                  <div className="pr-eoi-text" style={{ color: "#94A3B8", fontSize: 12, lineHeight: 1.6 }}>
                     Only <strong style={{ color: "#fff" }}>6 EOIs</strong> in your SA 190 pool at 80 pts — very low competition. 
                     With PTE Superior threshold, you'd reach <strong style={{ color: "#34D399" }}>{projectedWithSuperiorEnglish} pts</strong>, 
                     making your 189 pathway strong without needing state nomination.
@@ -784,7 +827,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div style={{ background: "#0A1222", border: "1px solid #1E293B", borderRadius: 14, padding: "16px" }}>
+              <div className="pr-card" style={{ background: "#0A1222", border: "1px solid #1E293B", borderRadius: 14, padding: "16px" }}>
                 <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: "#94A3B8" }}>🛂 Visa descriptions</div>
                 {[
                   { visa: "189", text: "Skilled Independent visa. Permanent residence, points-tested, no state sponsorship required." },
@@ -792,13 +835,13 @@ export default function App() {
                   { visa: "491", text: "Skilled Work Regional (Provisional). Regional provisional visa with state/family sponsorship (+15 points)." },
                   { visa: "191", text: "Permanent Residence (Skilled Regional). PR pathway after meeting 491/494 regional income and residency requirements." },
                 ].map((v) => (
-                  <div key={v.visa} style={{ marginBottom: 8, fontSize: 12, lineHeight: 1.5, color: "#CBD5E1" }}>
-                    <strong style={{ color: "#fff" }}>Subclass {v.visa}:</strong> {v.text}
+                  <div key={v.visa} className="pr-visa-desc" style={{ marginBottom: 8, fontSize: 12, lineHeight: 1.5, color: dm ? "#CBD5E1" : "#475569" }}>
+                    <strong style={{ color: dm ? "#fff" : "#0F172A" }}>Subclass {v.visa}:</strong> {v.text}
                   </div>
                 ))}
               </div>
 
-              <div style={{ background: "#0A1222", border: "1px solid #1E293B", borderRadius: 14, padding: "16px" }}>
+              <div className="pr-card" style={{ background: "#0A1222", border: "1px solid #1E293B", borderRadius: 14, padding: "16px" }}>
                 <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: "#94A3B8" }}>🔗 Official links</div>
                 {[
                   { label: "ImmiAccount login portal", href: "https://online.immi.gov.au/lusc/login" },
@@ -843,7 +886,7 @@ export default function App() {
           </div>
 
           {/* Skill tabs */}
-          <div style={{ background: "#0A1222", borderBottom: "1px solid #1E293B", display: "flex", marginBottom: 20, borderRadius: "12px 12px 0 0", overflow: "hidden" }}>
+          <div className="sw-card" style={{ background: "#0A1222", borderBottom: "1px solid #1E293B", display: "flex", marginBottom: 20, borderRadius: "12px 12px 0 0", overflow: "hidden" }}>
             {SECTIONS.map(s => (
               <button key={s.id} className={`skill-tab${pteSkill === s.id ? " active" : ""}`}
                 onClick={() => setPteSkill(s.id)}
@@ -868,7 +911,7 @@ export default function App() {
 
             {/* TABLE */}
             {(pteView === "table" || pteView === "both") && (
-              <div style={{ flex: pteView==="both" ? "1 1 420px" : "1 1 100%", background: "#0A1222", border: `1px solid ${pteSection.border}`, borderRadius: 14, overflow: "hidden" }}>
+              <div className="sw-card" style={{ flex: pteView==="both" ? "1 1 420px" : "1 1 100%", background: "#0A1222", border: `1px solid ${pteSection.border}`, borderRadius: 14, overflow: "hidden" }}>
                 <div style={{ background: pteSection.bg, borderBottom: `1px solid ${pteSection.border}`, padding: "14px 20px", display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ fontSize: 20 }}>{pteSection.icon}</span>
                   <div>
@@ -919,7 +962,7 @@ export default function App() {
             {/* CHART COLUMN */}
             {(pteView === "chart" || pteView === "both") && (
               <div style={{ flex: pteView==="both" ? "1 1 280px" : "1 1 100%", display: "flex", flexDirection: "column", gap: 14 }}>
-                <div style={{ background: "#0A1222", border: `1px solid ${pteSection.border}`, borderRadius: 14, padding: "18px" }}>
+                <div className="sw-card" style={{ background: "#0A1222", border: `1px solid ${pteSection.border}`, borderRadius: 14, padding: "18px" }}>
                   <div style={{ color: pteSection.color, fontWeight: 700, fontSize: 13, marginBottom: 14 }}>{pteSection.icon} {pteSection.label} Breakdown</div>
                   <ResponsiveContainer width="100%" height={pteSection.tasks.length * 42 + 8}>
                     <BarChart layout="vertical" data={pteSection.tasks} margin={{ left: 0, right: 36, top: 0, bottom: 0 }} barSize={16}>
@@ -962,7 +1005,7 @@ export default function App() {
           </div>
 
           {/* All sections summary */}
-          <div style={{ marginTop: 24, background: "#0A1222", border: "1px solid #1E293B", borderRadius: 14, overflow: "hidden" }}>
+          <div className="sw-card" style={{ marginTop: 24, background: "#0A1222", border: "1px solid #1E293B", borderRadius: 14, overflow: "hidden" }}>
             <div style={{ padding: "14px 20px", borderBottom: "1px solid #1E293B" }}>
               <div style={{ fontWeight: 700, fontSize: 13 }}>📌 All Sections — Tasks with ≥20% weight</div>
             </div>

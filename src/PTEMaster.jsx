@@ -40,6 +40,13 @@ import SummarizeWrittenPanel from "./components/writing/SummarizeWrittenPanel";
 import WriteDictationPanel from "./components/listening/WriteDictationPanel";
 import SummarizeSpeechPanel from "./components/listening/SummarizeSpeechPanel";
 import TypeInFillBlanksPanel from "./components/listening/TypeInFillBlanksPanel";
+import SmartDictationPanel from "./components/listening/SmartDictationPanel";
+import RapidFireVocab from "./components/RapidFireVocab";
+import StreakXPBanner from "./components/StreakXPBanner";
+import DailyChallenges from "./components/DailyChallenges";
+import StudyHeatmap from "./components/StudyHeatmap";
+import AIWeaknessDetector from "./components/AIWeaknessDetector";
+import useStreakXP from "./hooks/useStreakXP";
 
 // Simple constants used for display colours and labels.
 const ZONE_COLOR = { S: "#38BDF8", W: "#A78BFA", R: "#34D399", L: "#FBBF24" };
@@ -120,6 +127,7 @@ const SCORE_PROMPT = `You are a certified PTE Academic expert examiner with 10+ 
 
 export default function PTEMaster() {
   const { darkMode } = useTheme();
+  const { addXP } = useStreakXP();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // ---- Component state ----
   // `tab` switches between the app's main screens.
@@ -185,7 +193,7 @@ export default function PTEMaster() {
       // We attempt to extract and parse JSON from that field; if parsing fails, we
       // fall back to returning the raw response (for easier debugging).
       const raw = (data.content || []).map(b => b.text || "").join("").replace(/```json|```/g, "").trim();
-      try { setScoreResult(JSON.parse(raw)); }
+      try { const parsed = JSON.parse(raw); setScoreResult(parsed); addXP(20, "AI Scorer"); }
       catch { setScoreResult(data); }
     } catch (e) { console.error(e); setScoreError("AI scoring failed — please try again."); }
     setScoring(false);
@@ -234,6 +242,7 @@ export default function PTEMaster() {
     { id: "scorer",   label: "AI Scorer",      icon: "🤖" },
     { id: "tracker",  label: "Score Tracker",  icon: "📊" },
     { id: "qbank",    label: "Question Bank",  icon: "📚" },
+    { id: "vocab",    label: "Rapid Vocab",    icon: "⚡" },
     { id: "mock",     label: "Mock Tests",     icon: "🧪" },
     { id: "planner",  label: "Study Planner",  icon: "🗓" },
     { id: "analytics",label: "Analytics",      icon: "📈" },
@@ -407,6 +416,16 @@ export default function PTEMaster() {
         [data-theme="light"] .select-blank { background: #F1F5F9; border-color: #CBD5E1; color: #0F172A; }
         [data-theme="light"] .btn-primary:disabled { background: #E2E8F0; color: #94A3B8; }
         [data-theme="light"] tr:hover td { background: rgba(0,0,0,.02); }
+        [data-theme="light"] .pte-zone-pill { background: #FFFFFF !important; border-color: rgba(0,0,0,0.08) !important; }
+        [data-theme="light"] .pte-zone-pill .pte-zone-count { color: #0F172A !important; }
+        [data-theme="light"] .pte-zone-pill .pte-zone-sub { color: #64748B !important; }
+        [data-theme="light"] .pte-rule80-banner { background: #EFF6FF !important; border-color: #93C5FD !important; }
+        [data-theme="light"] .pte-rule80-banner p { color: #475569 !important; }
+        [data-theme="light"] .pte-rule80-banner strong { color: #0F172A !important; }
+        [data-theme="light"] .pte-low-priority { background: #FFF5F5 !important; border-color: #FCA5A5 !important; }
+        [data-theme="light"] .pte-hint-box { background: #F8FAFC !important; border-color: #E2E8F0 !important; }
+        [data-theme="light"] .task-card .task-name { color: #0F172A !important; }
+        [data-theme="light"] .task-card .task-divider { border-top-color: #E2E8F0 !important; }
       `}</style>
 
       {/* Mobile sidebar backdrop overlay */}
@@ -492,12 +511,15 @@ export default function PTEMaster() {
           ☰ <span>Navigation</span>
         </button>
 
+        <StreakXPBanner />
+
         {/* ───── PRIORITY MAP ───── */}
         {tab === "priority" && (
           <div>
+            <DailyChallenges onNavigate={nav} />
             <PriorityIntelligencePanel latestScores={latest} />
 
-            <div style={{ background: "#0C1B35", border: "1px solid #1D4ED8", borderRadius: 12, padding: "16px 20px", marginBottom: 24 }}>
+            <div className="pte-rule80-banner" style={{ background: "#0C1B35", border: "1px solid #1D4ED8", borderRadius: 12, padding: "16px 20px", marginBottom: 24 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#60A5FA", marginBottom: 6 }}>⚡ The 80% Rule — Where Your Score Actually Comes From</div>
               <p style={{ color: "#94A3B8", fontSize: 13, margin: 0, lineHeight: 1.7 }}>
                 These 12 task types generate roughly <strong style={{ color: "#fff" }}>80% of your total PTE score</strong>. Tasks marked <span style={{ color: "#FBBF24" }}>★★★★★</span> are <strong style={{ color: "#fff" }}>dual-skill contributors</strong> — one response impacts two skill scores simultaneously. They are your highest return-on-practice tasks. Master these before touching anything else.
@@ -509,11 +531,11 @@ export default function PTEMaster() {
               {['S','W','R','L'].map(z => {
                 const zt = PRIORITY_TASKS.filter(t => t.zone === z);
                 return (
-                  <div key={z} style={{ background: "#0F1929", borderRadius: 12, padding: "16px", border: `1px solid ${ZONE_COLOR[z]}25` }}>
+                  <div key={z} className="pte-zone-pill" style={{ background: "#0F1929", borderRadius: 12, padding: "16px", border: `1px solid ${ZONE_COLOR[z]}25` }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: ZONE_COLOR[z], marginBottom: 4 }}>{ZONE_NAME[z]}</div>
-                    <div style={{ fontSize: 28, fontWeight: 800 }}>{zt.length}</div>
-                    <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>priority tasks</div>
-                    <div style={{ fontSize: 11, color: "#64748B", marginTop: 6 }}>{zt.filter(t=>t.vvi===5).length} critical · {zt.filter(t=>t.vvi===4).length} high</div>
+                    <div className="pte-zone-count" style={{ fontSize: 28, fontWeight: 800 }}>{zt.length}</div>
+                    <div className="pte-zone-sub" style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>priority tasks</div>
+                    <div className="pte-zone-sub" style={{ fontSize: 11, color: "#64748B", marginTop: 6 }}>{zt.filter(t=>t.vvi===5).length} critical · {zt.filter(t=>t.vvi===4).length} high</div>
                   </div>
                 );
               })}
@@ -538,7 +560,7 @@ export default function PTEMaster() {
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 700, fontSize: 14, color: "#E2E8F0" }}>{task.name}</div>
+                          <div className="task-name" style={{ fontWeight: 700, fontSize: 14, color: "#E2E8F0" }}>{task.name}</div>
                           <div style={{ marginTop: 6 }}>
                             {task.skills.map(s => <span key={s} className="pill">{s}</span>)}
                           </div>
@@ -555,7 +577,7 @@ export default function PTEMaster() {
                           </div>
                         </div>
                       </div>
-                      <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #1E293B", color: "#64748B", fontSize: 12, lineHeight: 1.6 }}>
+                      <div className="task-divider" style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #1E293B", color: "#64748B", fontSize: 12, lineHeight: 1.6 }}>
                         💡 {customTips[task.id] ?? task.tip}
                       </div>
                       <div style={{ marginTop: 8, fontSize: 11, color: "#334155" }}>Tap to open →</div>
@@ -565,7 +587,7 @@ export default function PTEMaster() {
               </div>
             ))}
 
-            <div style={{ background: "#1A0F0F", border: "1px solid #7F1D1D", borderRadius: 12, padding: "14px 18px" }}>
+            <div className="pte-low-priority" style={{ background: "#1A0F0F", border: "1px solid #7F1D1D", borderRadius: 12, padding: "14px 18px" }}>
               <div style={{ color: "#FCA5A5", fontWeight: 700, fontSize: 12, marginBottom: 8 }}>⚠️ Lower Priority — Practise these ONLY after hitting 80+ in the tasks above</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 { ["Answer Short Question","Summarize Group Discussion","Respond to a Situation","MCQ Multiple Answers (R)","MCQ Single Answer (R)","MCQ Multiple Answers (L)","MCQ Single Answer (L)","Select Missing Words","Highlight Incorrect Words","Highlight Correct Summary"].map(t => (
@@ -603,7 +625,7 @@ export default function PTEMaster() {
             </div>
 
             {/* Rubric hint */}
-            <div style={{ background: "#0F1929", border: "1px solid #1E293B", borderRadius: 10, padding: "12px 16px", marginBottom: 14, fontSize: 12, color: "#64748B", lineHeight: 1.6 }}>
+            <div className="pte-hint-box" style={{ background: "#0F1929", border: "1px solid #1E293B", borderRadius: 10, padding: "12px 16px", marginBottom: 14, fontSize: 12, color: "#64748B", lineHeight: 1.6 }}>
               {scorerTask === "write_essay" && "📏 Write Essay: 200–300 words · 4 paragraphs · Scored on: Content, Form, Grammar, Vocabulary, Spelling"}
               {scorerTask === "summarize_written" && "📏 Summarize Written Text: MUST be 1 sentence · 5–75 words · Scored on: Content, Form (1-sentence rule), Grammar, Vocabulary, Spelling"}
               {scorerTask === "read_aloud" && "📏 Read Aloud: Paste a transcript of what you said. Scored on: Content accuracy, Oral fluency, Pronunciation"}
@@ -1005,6 +1027,7 @@ export default function PTEMaster() {
           <div>
             <div className="sub-tabs-scroll" style={{ marginBottom: 20 }}>
               {[
+                { id: "smart",      label: "🧠 Smart Dictation",     weight: "SRS" },
                 { id: "dictation",  label: "✍️ Write Dictation",     weight: "22%" },
                 { id: "summarize",  label: "🎧 Summarize Spoken",    weight: "14%" },
                 { id: "typein",     label: "⌨️ Fill Blanks (Type)",   weight: "12%" },
@@ -1021,14 +1044,16 @@ export default function PTEMaster() {
                 </button>
               ))}
             </div>
+            {listeningTab === "smart"     && <SmartDictationPanel />}
             {listeningTab === "dictation" && <WriteDictationPanel />}
             {listeningTab === "summarize" && <SummarizeSpeechPanel />}
             {listeningTab === "typein"    && <TypeInFillBlanksPanel />}
             {listeningTab === "general"   && <ListeningPanel />}
           </div>
         )}
+        {tab === "vocab" && <RapidFireVocab />}
         {tab === "planner" && <StudyPlanner />}
-        {tab === "analytics" && <AnalyticsDashboard />}
+        {tab === "analytics" && <><StudyHeatmap /><AIWeaknessDetector /><AnalyticsDashboard /></>}
         {tab === "game" && <GamificationPanel />}
         {tab === "prod" && <ProductionReadinessPanel />}
 
